@@ -14,8 +14,10 @@ repositories {
   mavenCentral()
 }
 
-val vertxVersion = "5.0.5"
 val junitJupiterVersion = "5.9.1"
+val logbackVersion = "1.5.21"
+val vertxVersion = "5.0.5"
+val slf4jVersion = "2.0.17"
 
 val mainVerticleName = "ssonin.ccmemcached.MainVerticle"
 val launcherClassName = "io.vertx.launcher.application.VertxApplication"
@@ -26,11 +28,16 @@ application {
 
 dependencies {
   implementation(platform("io.vertx:vertx-stack-depchain:$vertxVersion"))
+
+  implementation("ch.qos.logback:logback-classic:${logbackVersion}")
   implementation("io.vertx:vertx-core")
   implementation("io.vertx:vertx-launcher-application")
+  implementation("org.slf4j:slf4j-api:$slf4jVersion")
+
+  testRuntimeOnly("org.junit.platform:junit-platform-launcher")
+
   testImplementation("io.vertx:vertx-junit5")
   testImplementation("org.junit.jupiter:junit-jupiter:$junitJupiterVersion")
-  testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 
 java {

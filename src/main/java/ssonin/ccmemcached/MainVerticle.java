@@ -1,18 +1,25 @@
 package ssonin.ccmemcached;
 
+import io.vertx.core.DeploymentOptions;
 import io.vertx.core.Future;
 import io.vertx.core.VerticleBase;
+import io.vertx.core.json.JsonObject;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-public class MainVerticle extends VerticleBase {
+public final class MainVerticle extends VerticleBase {
+
+  private static final Logger LOG = LoggerFactory.getLogger(MainVerticle.class);
 
   @Override
   public Future<?> start() {
-    return vertx.createHttpServer().requestHandler(req -> {
-      req.response()
-        .putHeader("content-type", "text/plain")
-        .end("Hello from Vert.x!");
-    }).listen(8888).onSuccess(http -> {
-      System.out.println("HTTP server started on port 8888");
-    });
+    return vertx.deployVerticle(
+        "ssonin.ccmemcached.NetVerticle",
+        new DeploymentOptions().setConfig(new JsonObject().put("http.port", 11211)))
+      .onSuccess(id -> {
+        LOG.info("Config: {}", config());
+        LOG.info("ssonin.ccmemcached.NetVerticle deployed, id: {}", id);
+      })
+      .onFailure(Throwable::printStackTrace);
   }
 }
