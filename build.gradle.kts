@@ -15,11 +15,11 @@ repositories {
 }
 
 val junitJupiterVersion = "5.9.1"
-val logbackVersion = "1.5.21"
-val vertxVersion = "5.0.5"
+val logbackVersion = "1.5.32"
 val slf4jVersion = "2.0.17"
+val vertxVersion = "5.0.8"
 
-val mainVerticleName = "ssonin.ccmemcached.MainVerticle"
+val mainVerticleName = "ssonin.ccmemcached.App"
 val launcherClassName = "io.vertx.launcher.application.VertxApplication"
 
 application {

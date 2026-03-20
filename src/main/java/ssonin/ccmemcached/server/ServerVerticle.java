@@ -1,14 +1,15 @@
-package ssonin.ccmemcached;
+package ssonin.ccmemcached.server;
 
 import io.vertx.core.Future;
 import io.vertx.core.VerticleBase;
 import io.vertx.core.net.NetSocket;
 import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
-public class NetVerticle extends VerticleBase {
+import static org.slf4j.LoggerFactory.getLogger;
 
-  private static final Logger LOG = LoggerFactory.getLogger(NetVerticle.class);
+public final class ServerVerticle extends VerticleBase {
+
+  private static final Logger LOG = getLogger(ServerVerticle.class);
 
   @Override
   public Future<?> start() {
