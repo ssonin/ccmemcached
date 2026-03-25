@@ -14,6 +14,7 @@ repositories {
   mavenCentral()
 }
 
+val assertjVersion = "3.27.3"
 val junitJupiterVersion = "5.9.1"
 val logbackVersion = "1.5.32"
 val slf4jVersion = "2.0.17"
@@ -36,6 +37,7 @@ dependencies {
 
   testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 
+  testImplementation("org.assertj:assertj-core:${assertjVersion}")
   testImplementation("io.vertx:vertx-junit5")
   testImplementation("org.junit.jupiter:junit-jupiter:$junitJupiterVersion")
 }
