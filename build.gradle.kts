@@ -15,6 +15,7 @@ repositories {
 }
 
 val assertjVersion = "3.27.3"
+val caffeineVersion = "3.2.3"
 val junitJupiterVersion = "5.9.1"
 val logbackVersion = "1.5.32"
 val slf4jVersion = "2.0.17"
@@ -31,6 +32,7 @@ dependencies {
   implementation(platform("io.vertx:vertx-stack-depchain:$vertxVersion"))
 
   implementation("ch.qos.logback:logback-classic:${logbackVersion}")
+  implementation("com.github.ben-manes.caffeine:caffeine:${caffeineVersion}")
   implementation("io.vertx:vertx-core")
   implementation("io.vertx:vertx-launcher-application")
   implementation("org.slf4j:slf4j-api:$slf4jVersion")
