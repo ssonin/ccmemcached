@@ -18,6 +18,7 @@ val assertjVersion = "3.27.3"
 val caffeineVersion = "3.2.3"
 val junitJupiterVersion = "5.9.1"
 val logbackVersion = "1.5.32"
+val mockitoVersion = "5.20.0"
 val slf4jVersion = "2.0.17"
 val vertxVersion = "5.0.8"
 
@@ -38,15 +39,48 @@ dependencies {
   implementation("org.slf4j:slf4j-api:$slf4jVersion")
 
   testRuntimeOnly("org.junit.platform:junit-platform-launcher")
-
-  testImplementation("org.assertj:assertj-core:${assertjVersion}")
-  testImplementation("io.vertx:vertx-junit5")
-  testImplementation("org.junit.jupiter:junit-jupiter:$junitJupiterVersion")
 }
 
 java {
   sourceCompatibility = JavaVersion.VERSION_21
   targetCompatibility = JavaVersion.VERSION_21
+}
+
+testing {
+  suites {
+    val test by getting(JvmTestSuite::class) {
+      useJUnitJupiter()
+
+      dependencies {
+        implementation(platform("io.vertx:vertx-stack-depchain:$vertxVersion"))
+        implementation("io.vertx:vertx-junit5")
+        implementation("org.assertj:assertj-core:${assertjVersion}")
+        implementation("org.junit.jupiter:junit-jupiter:$junitJupiterVersion")
+        implementation("org.mockito:mockito-core:$mockitoVersion")
+        implementation("org.mockito:mockito-junit-jupiter:$mockitoVersion")
+      }
+    }
+
+    register<JvmTestSuite>("integrationTest") {
+      useJUnitJupiter()
+
+      dependencies {
+        implementation(project())
+        implementation(platform("io.vertx:vertx-stack-depchain:$vertxVersion"))
+        implementation("io.vertx:vertx-junit5")
+        implementation("org.assertj:assertj-core:${assertjVersion}")
+        implementation("org.junit.jupiter:junit-jupiter:$junitJupiterVersion")
+      }
+
+      targets {
+        all {
+          testTask.configure {
+            shouldRunAfter(tasks.named("test"))
+          }
+        }
+      }
+    }
+  }
 }
 
 tasks.withType<ShadowJar> {
@@ -58,7 +92,6 @@ tasks.withType<ShadowJar> {
 }
 
 tasks.withType<Test> {
-  useJUnitPlatform()
   testLogging {
     events = setOf(PASSED, SKIPPED, FAILED)
   }
