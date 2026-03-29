@@ -64,7 +64,7 @@ class ProtocolHandlerTest {
 
     // then
     then(cacheService).should().put(eq(expectedCommand), argThat(data -> Arrays.equals(data, "value".getBytes())));
-    then(parser).should().delimitedMode("\r\n");
+    then(parser).should(times(2)).delimitedMode("\r\n");
     then(socket).should().write("STORED\r\n");
   }
 
@@ -108,7 +108,7 @@ class ProtocolHandlerTest {
     // then
     then(socket).should().write("CLIENT_ERROR: expected at least 5 fields, got 4\r\n");
     then(socket).should().write("STORED\r\n");
-    then(parser).should(times(2)).delimitedMode("\r\n");
+    then(parser).should(times(3)).delimitedMode("\r\n");
     then(parser).should().fixedSizeMode(5);
     then(cacheService).should().put(eq(expectedCommand), argThat(data -> Arrays.equals(data, "hello".getBytes())));
   }

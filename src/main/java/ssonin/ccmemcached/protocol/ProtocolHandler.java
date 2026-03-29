@@ -7,6 +7,7 @@ import ssonin.ccmemcached.cache.CacheService;
 import ssonin.ccmemcached.protocol.command.Command;
 import ssonin.ccmemcached.protocol.command.SetCommand;
 import ssonin.ccmemcached.protocol.error.ApplicationError;
+import ssonin.ccmemcached.protocol.error.ClientError;
 
 import static ssonin.ccmemcached.protocol.ProtocolHandler.State.AWAITING_COMMAND;
 import static ssonin.ccmemcached.protocol.ProtocolHandler.State.AWAITING_DATA;
@@ -19,7 +20,7 @@ public final class ProtocolHandler {
   private final NetSocket socket;
   private final RecordParser parser;
   private State state = AWAITING_COMMAND;
-  private Command command;
+  private SetCommand pendingStorageCommand;
   private byte[] data;
 
   public ProtocolHandler(CacheService cacheService, NetSocket socket) {
@@ -48,40 +49,49 @@ public final class ProtocolHandler {
 
   private void resetState() {
     state = AWAITING_COMMAND;
-    command = null;
+    pendingStorageCommand = null;
     data = null;
     parser.delimitedMode("\r\n");
   }
 
   private void process(Buffer buffer) {
     switch (state) {
-      case AWAITING_COMMAND -> {
-        command = parseCommand(buffer);
-        switch (command.type()) {
-          case STORAGE ->  {
-            state = AWAITING_DATA;
-            parser.fixedSizeMode(((SetCommand) command).bytes());
-          }
-          case RETRIEVAL -> {
-            throw new UnsupportedOperationException("Not implemented yet");
-          }
-        }
-      }
-      case AWAITING_DATA -> {
-        data = buffer.getBytes();
-        state = AWAITING_TRAILING_CRLF;
-        parser.delimitedMode("\r\n");
-      }
-      case AWAITING_TRAILING_CRLF -> {
-        cacheService.put((SetCommand) command, data);
-        if (!command.noReply()) {
-          socket.write("STORED\r\n");
-        }
-        state = AWAITING_COMMAND;
-        command = null;
-        data = null;
-      }
+      case AWAITING_COMMAND -> handleCommandLine(buffer);
+      case AWAITING_DATA -> handleStorageData(buffer);
+      case AWAITING_TRAILING_CRLF -> completeStorageWrite();
     }
+  }
+
+  private void handleCommandLine(Buffer buffer) {
+    final var command = parseCommand(buffer);
+    dispatch(command);
+  }
+
+  private void dispatch(Command command) {
+    switch (command) {
+      case SetCommand setCommand -> startStorage(setCommand);
+      default -> throw new ClientError("command '%s' is not implemented".formatted(command.name().name().toLowerCase()));
+    }
+  }
+
+  private void startStorage(SetCommand command) {
+    pendingStorageCommand = command;
+    state = AWAITING_DATA;
+    parser.fixedSizeMode(command.bytes());
+  }
+
+  private void handleStorageData(Buffer buffer) {
+    data = buffer.getBytes();
+    state = AWAITING_TRAILING_CRLF;
+    parser.delimitedMode("\r\n");
+  }
+
+  private void completeStorageWrite() {
+    cacheService.put(pendingStorageCommand, data);
+    if (!pendingStorageCommand.noReply()) {
+      socket.write("STORED\r\n");
+    }
+    resetState();
   }
 
   enum State {
