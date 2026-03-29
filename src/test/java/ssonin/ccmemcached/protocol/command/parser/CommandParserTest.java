@@ -1,12 +1,16 @@
 package ssonin.ccmemcached.protocol.command.parser;
 
 import org.junit.jupiter.api.Test;
+import ssonin.ccmemcached.protocol.command.GetCommand;
 import ssonin.ccmemcached.protocol.error.ApplicationError;
 import ssonin.ccmemcached.protocol.error.CommandNameError;
+
+import java.util.List;
 
 import static io.vertx.core.buffer.Buffer.buffer;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.catchThrowable;
+import static ssonin.ccmemcached.protocol.command.CommandName.GET;
 import static ssonin.ccmemcached.protocol.command.CommandName.SET;
 import static ssonin.ccmemcached.protocol.command.SetCommand.Builder.setCommand;
 import static ssonin.ccmemcached.protocol.command.parser.CommandParser.parseCommand;
@@ -71,12 +75,12 @@ class CommandParserTest {
   }
 
   @Test
-  void throws_when_command_is_recognised_but_not_implemented() {
+  void dispatches_to_get_command_parser() {
     // when
-    var thrown = catchThrowable(() -> parseCommand(buffer("get mykey")));
+    var command = parseCommand(buffer("get mykey other"));
 
     // then
-    assertThat(thrown).isInstanceOf(ApplicationError.class)
-      .hasMessageStartingWith("CLIENT_ERROR");
+    assertThat(command).isEqualTo(new GetCommand(List.of("mykey", "other")));
+    assertThat(command.name()).isEqualTo(GET);
   }
 }

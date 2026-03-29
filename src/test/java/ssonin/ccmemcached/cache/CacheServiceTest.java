@@ -5,11 +5,15 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
 import java.time.InstantSource;
+import java.util.List;
+import java.util.Map;
 
 import static java.time.Duration.ofDays;
 import static java.time.Duration.ofSeconds;
 import static java.time.Instant.parse;
 import static java.time.InstantSource.fixed;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
 import static org.mockito.Mockito.mock;
 import static ssonin.ccmemcached.protocol.command.SetCommand.Builder.setCommand;
@@ -78,6 +82,25 @@ class CacheServiceTest {
 
       // then
       then(delegate).should().put("mykey", new CacheEntry(9, ofSeconds(3600), data));
+    }
+  }
+
+  @Nested
+  class GetOperation {
+
+    @Test
+    void returns_entries_present_for_requested_keys() {
+      // given
+      var keys = List.of("first", "second");
+      var entries = Map.of("first", new CacheEntry(7, ofSeconds(30), "value".getBytes()));
+      given(delegate.getAllPresent(keys)).willReturn(entries);
+
+      // when
+      var result = tested.getAllPresent(keys);
+
+      // then
+      assertThat(result).isEqualTo(entries);
+      then(delegate).should().getAllPresent(keys);
     }
   }
 }

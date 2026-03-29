@@ -6,6 +6,8 @@ import ssonin.ccmemcached.protocol.command.SetCommand;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.InstantSource;
+import java.util.List;
+import java.util.Map;
 
 import static ssonin.ccmemcached.cache.CacheEntry.cacheEntry;
 
@@ -20,6 +22,14 @@ public final class CacheService {
   public CacheService(Cache<String, CacheEntry> delegate, InstantSource clock) {
     this.delegate = delegate;
     this.clock = clock;
+  }
+
+  public Map<String, CacheEntry> getAllPresent(List<String> keys) {
+    return delegate.getAllPresent(keys);
+  }
+
+  public void cleanUp() {
+    delegate.cleanUp();
   }
 
   public void put(SetCommand command, byte[] data) {

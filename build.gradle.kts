@@ -67,6 +67,8 @@ testing {
       dependencies {
         implementation(project())
         implementation(platform("io.vertx:vertx-stack-depchain:$vertxVersion"))
+        implementation("com.github.ben-manes.caffeine:caffeine:${caffeineVersion}")
+        implementation("com.google.guava:guava-testlib:33.4.8-jre")
         implementation("io.vertx:vertx-junit5")
         implementation("org.assertj:assertj-core:${assertjVersion}")
         implementation("org.junit.jupiter:junit-jupiter:$junitJupiterVersion")

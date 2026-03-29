@@ -10,11 +10,13 @@ import java.util.Map;
 import java.util.function.Function;
 
 import static java.util.Objects.requireNonNull;
+import static ssonin.ccmemcached.protocol.command.CommandName.GET;
 import static ssonin.ccmemcached.protocol.command.CommandName.SET;
 
 public final class CommandParser {
 
   private static final Map<CommandName, Function<String[], Command>> parsers = Map.of(
+    GET, GetCommandParser::parse,
     SET, SetCommandParser::parse
   );
 

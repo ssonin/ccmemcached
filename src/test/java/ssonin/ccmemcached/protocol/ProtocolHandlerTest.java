@@ -5,17 +5,24 @@ import io.vertx.core.buffer.Buffer;
 import io.vertx.core.net.NetSocket;
 import io.vertx.core.parsetools.RecordParser;
 import org.junit.jupiter.api.Test;
+import org.mockito.InOrder;
 import org.mockito.Mockito;
+import ssonin.ccmemcached.cache.CacheEntry;
 import ssonin.ccmemcached.cache.CacheService;
 
+import java.time.Duration;
 import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
 
 import static io.vertx.core.buffer.Buffer.buffer;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
 import static org.mockito.BDDMockito.willAnswer;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.times;
 import static ssonin.ccmemcached.protocol.command.SetCommand.Builder.setCommand;
 
@@ -111,6 +118,32 @@ class ProtocolHandlerTest {
     then(parser).should(times(3)).delimitedMode("\r\n");
     then(parser).should().fixedSizeMode(5);
     then(cacheService).should().put(eq(expectedCommand), argThat(data -> Arrays.equals(data, "hello".getBytes())));
+  }
+
+  @Test
+  void writes_values_for_present_get_keys_in_request_order_and_ends_response() {
+    // given
+    var keys = List.of("second", "missing", "first");
+    var entries = Map.of(
+      "first", new CacheEntry(1, Duration.ofSeconds(60), "one".getBytes()),
+      "second", new CacheEntry(2, Duration.ofSeconds(60), "two".getBytes())
+    );
+    given(cacheService.getAllPresent(keys)).willReturn(entries);
+
+    // when
+    parserHandler.handle(buffer("get second missing first"));
+
+    // then
+    then(cacheService).should().getAllPresent(keys);
+    InOrder inOrder = inOrder(socket);
+    inOrder.verify(socket).write("VALUE second 2 3\r\n");
+    inOrder.verify(socket).write(buffer("two"));
+    inOrder.verify(socket).write("\r\n");
+    inOrder.verify(socket).write("VALUE first 1 3\r\n");
+    inOrder.verify(socket).write(buffer("one"));
+    inOrder.verify(socket).write("\r\n");
+    inOrder.verify(socket).write("END\r\n");
+    inOrder.verifyNoMoreInteractions();
   }
 
   private RecordParser parser() {

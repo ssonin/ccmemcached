@@ -9,7 +9,7 @@ import static ssonin.ccmemcached.protocol.command.SetCommand.Builder.setCommand;
 import static ssonin.ccmemcached.protocol.command.parser.ParsingSupport.parseKey;
 import static ssonin.ccmemcached.protocol.command.parser.ParsingSupport.parseNoReply;
 
-public final class SetCommandParser {
+final class SetCommandParser {
 
   private static final Logger logger = getLogger(SetCommandParser.class);
 

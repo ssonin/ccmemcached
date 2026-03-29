@@ -5,10 +5,12 @@ import io.vertx.core.net.NetSocket;
 import io.vertx.core.parsetools.RecordParser;
 import ssonin.ccmemcached.cache.CacheService;
 import ssonin.ccmemcached.protocol.command.Command;
+import ssonin.ccmemcached.protocol.command.GetCommand;
 import ssonin.ccmemcached.protocol.command.SetCommand;
 import ssonin.ccmemcached.protocol.error.ApplicationError;
 import ssonin.ccmemcached.protocol.error.ClientError;
 
+import static io.vertx.core.buffer.Buffer.buffer;
 import static ssonin.ccmemcached.protocol.ProtocolHandler.State.AWAITING_COMMAND;
 import static ssonin.ccmemcached.protocol.ProtocolHandler.State.AWAITING_DATA;
 import static ssonin.ccmemcached.protocol.ProtocolHandler.State.AWAITING_TRAILING_CRLF;
@@ -69,9 +71,23 @@ public final class ProtocolHandler {
 
   private void dispatch(Command command) {
     switch (command) {
+      case GetCommand getCommand -> startRetrieval(getCommand);
       case SetCommand setCommand -> startStorage(setCommand);
       default -> throw new ClientError("command '%s' is not implemented".formatted(command.name().name().toLowerCase()));
     }
+  }
+
+  private void startRetrieval(GetCommand command) {
+    final var entries = cacheService.getAllPresent(command.keys());
+    command.keys().forEach(key -> {
+      final var entry = entries.get(key);
+      if (entry != null) {
+        socket.write("VALUE %s %s %s\r\n".formatted(key, entry.flags(), entry.data().length));
+        socket.write(buffer(entry.data()));
+        socket.write("\r\n");
+      }
+    });
+    socket.write("END\r\n");
   }
 
   private void startStorage(SetCommand command) {
