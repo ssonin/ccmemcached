@@ -17,8 +17,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.then;
 import static org.mockito.BDDMockito.willAnswer;
 import static org.mockito.Mockito.times;
-import static ssonin.ccmemcached.protocol.command.Command.Builder.command;
-import static ssonin.ccmemcached.protocol.command.CommandName.SET;
+import static ssonin.ccmemcached.protocol.command.SetCommand.Builder.setCommand;
 
 class ProtocolHandlerTest {
 
@@ -51,8 +50,7 @@ class ProtocolHandlerTest {
   @Test
   void stores_value_and_writes_stored_response_when_set_command_completes() {
     // given
-    var expectedCommand = command()
-      .name(SET)
+    var expectedCommand = setCommand()
       .key("mykey")
       .flags(42)
       .expTime(900)
@@ -73,8 +71,7 @@ class ProtocolHandlerTest {
   @Test
   void stores_value_without_writing_response_when_set_uses_noreply() {
     // given
-    var expectedCommand = command()
-      .name(SET)
+    var expectedCommand = setCommand()
       .key("mykey")
       .flags(7)
       .expTime(900)
@@ -95,8 +92,7 @@ class ProtocolHandlerTest {
   @Test
   void writes_error_and_resets_state_after_invalid_command() {
     // given
-    var expectedCommand = command()
-      .name(SET)
+    var expectedCommand = setCommand()
       .key("next")
       .flags(9)
       .expTime(60)

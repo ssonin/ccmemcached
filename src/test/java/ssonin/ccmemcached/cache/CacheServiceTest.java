@@ -12,8 +12,7 @@ import static java.time.Instant.parse;
 import static java.time.InstantSource.fixed;
 import static org.mockito.BDDMockito.then;
 import static org.mockito.Mockito.mock;
-import static ssonin.ccmemcached.protocol.command.Command.Builder.command;
-import static ssonin.ccmemcached.protocol.command.CommandName.SET;
+import static ssonin.ccmemcached.protocol.command.SetCommand.Builder.setCommand;
 
 class CacheServiceTest {
 
@@ -29,8 +28,7 @@ class CacheServiceTest {
     @Test
     void stores_entry_without_expiry_when_exptime_is_zero() {
       // given
-      var command = command()
-        .name(SET)
+      var command = setCommand()
         .key("mykey")
         .flags(42)
         .expTime(0)
@@ -48,8 +46,7 @@ class CacheServiceTest {
     @Test
     void stores_entry_with_relative_ttl_when_exptime_is_within_relative_range() {
       // given
-      var command = command()
-        .name(SET)
+      var command = setCommand()
         .key("mykey")
         .flags(7)
         .expTime(900)
@@ -68,8 +65,7 @@ class CacheServiceTest {
     void stores_entry_with_absolute_ttl_when_exptime_is_unix_timestamp() {
       // given
       var now = parse("2024-01-01T00:00:00Z");
-      var command = command()
-        .name(SET)
+      var command = setCommand()
         .key("mykey")
         .flags(9)
         .expTime((int) now.plusSeconds(3600).getEpochSecond())

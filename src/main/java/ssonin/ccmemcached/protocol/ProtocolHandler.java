@@ -5,12 +5,13 @@ import io.vertx.core.net.NetSocket;
 import io.vertx.core.parsetools.RecordParser;
 import ssonin.ccmemcached.cache.CacheService;
 import ssonin.ccmemcached.protocol.command.Command;
+import ssonin.ccmemcached.protocol.command.SetCommand;
 import ssonin.ccmemcached.protocol.error.ApplicationError;
 
 import static ssonin.ccmemcached.protocol.ProtocolHandler.State.AWAITING_COMMAND;
 import static ssonin.ccmemcached.protocol.ProtocolHandler.State.AWAITING_DATA;
 import static ssonin.ccmemcached.protocol.ProtocolHandler.State.AWAITING_TRAILING_CRLF;
-import static ssonin.ccmemcached.protocol.command.CommandParser.parseCommand;
+import static ssonin.ccmemcached.protocol.command.parser.CommandParser.parseCommand;
 
 public final class ProtocolHandler {
 
@@ -59,7 +60,7 @@ public final class ProtocolHandler {
         switch (command.type()) {
           case STORAGE ->  {
             state = AWAITING_DATA;
-            parser.fixedSizeMode(command.bytes());
+            parser.fixedSizeMode(((SetCommand) command).bytes());
           }
           case RETRIEVAL -> {
             throw new UnsupportedOperationException("Not implemented yet");
@@ -72,7 +73,7 @@ public final class ProtocolHandler {
         parser.delimitedMode("\r\n");
       }
       case AWAITING_TRAILING_CRLF -> {
-        cacheService.put(command, data);
+        cacheService.put((SetCommand) command, data);
         if (!command.noReply()) {
           socket.write("STORED\r\n");
         }

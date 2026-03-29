@@ -1,7 +1,7 @@
 package ssonin.ccmemcached.cache;
 
 import com.github.benmanes.caffeine.cache.Cache;
-import ssonin.ccmemcached.protocol.command.Command;
+import ssonin.ccmemcached.protocol.command.SetCommand;
 
 import java.time.Duration;
 import java.time.Instant;
@@ -22,7 +22,7 @@ public final class CacheService {
     this.clock = clock;
   }
 
-  public void put(Command command, byte[] data) {
+  public void put(SetCommand command, byte[] data) {
     final var entry = cacheEntry()
       .flags(command.flags())
       .ttl(evaluateTtl(command.expTime()))
