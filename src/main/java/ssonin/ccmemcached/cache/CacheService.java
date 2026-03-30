@@ -28,6 +28,10 @@ public final class CacheService {
     return delegate.getAllPresent(keys);
   }
 
+  public boolean delete(String key) {
+    return delegate.asMap().remove(key) != null;
+  }
+
   public void cleanUp() {
     delegate.cleanUp();
   }

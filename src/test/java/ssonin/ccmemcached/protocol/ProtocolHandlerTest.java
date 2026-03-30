@@ -146,6 +146,45 @@ class ProtocolHandlerTest {
     inOrder.verifyNoMoreInteractions();
   }
 
+  @Test
+  void deletes_existing_key_and_writes_deleted_response() {
+    // given
+    given(cacheService.delete("mykey")).willReturn(true);
+
+    // when
+    parserHandler.handle(buffer("delete mykey"));
+
+    // then
+    then(cacheService).should().delete("mykey");
+    then(socket).should().write("DELETED\r\n");
+  }
+
+  @Test
+  void writes_not_found_when_delete_target_is_missing() {
+    // given
+    given(cacheService.delete("missing")).willReturn(false);
+
+    // when
+    parserHandler.handle(buffer("delete missing"));
+
+    // then
+    then(cacheService).should().delete("missing");
+    then(socket).should().write("NOT_FOUND\r\n");
+  }
+
+  @Test
+  void deletes_without_writing_response_when_delete_uses_noreply() {
+    // given
+    given(cacheService.delete("quiet")).willReturn(true);
+
+    // when
+    parserHandler.handle(buffer("delete quiet noreply"));
+
+    // then
+    then(cacheService).should().delete("quiet");
+    then(socket).shouldHaveNoMoreInteractions();
+  }
+
   private RecordParser parser() {
     var parser = Mockito.mock(RecordParser.class);
     willAnswer(invocation -> {

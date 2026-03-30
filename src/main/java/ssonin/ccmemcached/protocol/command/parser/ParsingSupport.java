@@ -26,10 +26,10 @@ final class ParsingSupport {
     return key;
   }
 
-  static boolean parseNoReply(String[] parts) {
-    if (parts.length == 6) {
-      if (!parts[5].equals("noreply")) {
-        throw new ClientError("expected 'noreply', got '%s'".formatted(parts[5]));
+  static boolean parseNoReply(String[] parts, int noReplyIndex) {
+    if (parts.length == noReplyIndex + 1) {
+      if (!parts[noReplyIndex].equals("noreply")) {
+        throw new ClientError("expected 'noreply', got '%s'".formatted(parts[noReplyIndex]));
       }
       return true;
     }

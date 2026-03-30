@@ -25,7 +25,7 @@ final class SetCommandParser {
       .flags(parseFlags(parts[2]))
       .expTime(parseExpTime(parts[3]))
       .bytes(parseBytes(parts[4]))
-      .noReply(parseNoReply(parts))
+      .noReply(parseNoReply(parts, 5))
       .build();
   }
 

@@ -88,7 +88,7 @@ class ParsingSupportTest {
       var parts = new String[]{"set", "mykey", "0", "900", "5"};
 
       // when
-      var noReply = parseNoReply(parts);
+      var noReply = parseNoReply(parts, 5);
 
       // then
       assertThat(noReply).isFalse();
@@ -100,7 +100,7 @@ class ParsingSupportTest {
       var parts = new String[]{"set", "mykey", "0", "900", "5", "noreply"};
 
       // when
-      var noReply = parseNoReply(parts);
+      var noReply = parseNoReply(parts, 5);
 
       // then
       assertThat(noReply).isTrue();
@@ -112,11 +112,23 @@ class ParsingSupportTest {
       var parts = new String[]{"set", "mykey", "0", "900", "5", "NOREPLY"};
 
       // when
-      var thrown = catchThrowable(() -> parseNoReply(parts));
+      var thrown = catchThrowable(() -> parseNoReply(parts, 5));
 
       // then
       assertThat(thrown).isInstanceOf(ApplicationError.class)
         .hasMessageStartingWith("CLIENT_ERROR");
+    }
+
+    @Test
+    void supports_other_commands_with_different_noreply_positions() {
+      // given
+      var parts = new String[]{"delete", "mykey", "noreply"};
+
+      // when
+      var noReply = parseNoReply(parts, 2);
+
+      // then
+      assertThat(noReply).isTrue();
     }
   }
 }

@@ -7,6 +7,7 @@ import org.junit.jupiter.api.Test;
 import java.time.InstantSource;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 import static java.time.Duration.ofDays;
 import static java.time.Duration.ofSeconds;
@@ -101,6 +102,40 @@ class CacheServiceTest {
       // then
       assertThat(result).isEqualTo(entries);
       then(delegate).should().getAllPresent(keys);
+    }
+  }
+
+  @Nested
+  class DeleteOperation {
+
+    @Test
+    void returns_true_and_removes_entry_when_key_exists() {
+      // given
+      var entries = new ConcurrentHashMap<String, CacheEntry>();
+      entries.put("mykey", new CacheEntry(7, ofSeconds(30), "value".getBytes()));
+      given(delegate.asMap()).willReturn(entries);
+
+      // when
+      var deleted = tested.delete("mykey");
+
+      // then
+      assertThat(deleted).isTrue();
+      assertThat(entries).doesNotContainKey("mykey");
+      then(delegate).should().asMap();
+    }
+
+    @Test
+    void returns_false_when_key_does_not_exist() {
+      // given
+      var entries = new ConcurrentHashMap<String, CacheEntry>();
+      given(delegate.asMap()).willReturn(entries);
+
+      // when
+      var deleted = tested.delete("missing");
+
+      // then
+      assertThat(deleted).isFalse();
+      then(delegate).should().asMap();
     }
   }
 }

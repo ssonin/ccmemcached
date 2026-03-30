@@ -5,6 +5,7 @@ import io.vertx.core.net.NetSocket;
 import io.vertx.core.parsetools.RecordParser;
 import ssonin.ccmemcached.cache.CacheService;
 import ssonin.ccmemcached.protocol.command.Command;
+import ssonin.ccmemcached.protocol.command.DeleteCommand;
 import ssonin.ccmemcached.protocol.command.GetCommand;
 import ssonin.ccmemcached.protocol.command.SetCommand;
 import ssonin.ccmemcached.protocol.error.ApplicationError;
@@ -71,9 +72,18 @@ public final class ProtocolHandler {
 
   private void dispatch(Command command) {
     switch (command) {
+      case DeleteCommand deleteCommand -> handleDelete(deleteCommand);
       case GetCommand getCommand -> startRetrieval(getCommand);
       case SetCommand setCommand -> startStorage(setCommand);
       default -> throw new ClientError("command '%s' is not implemented".formatted(command.name().name().toLowerCase()));
+    }
+  }
+
+  private void handleDelete(DeleteCommand command) {
+    final var deleted = cacheService.delete(command.key());
+    if (!command.noReply()) {
+      final var response = deleted ? "DELETED" : "NOT_FOUND";
+      socket.write("%s\r\n".formatted(response));
     }
   }
 
