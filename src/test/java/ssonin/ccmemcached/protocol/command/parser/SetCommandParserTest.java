@@ -10,6 +10,8 @@ import static ssonin.ccmemcached.protocol.command.parser.SetCommandParser.parse;
 
 class SetCommandParserTest {
 
+  private static final int MAX_VALUE_BYTES = 1024 * 1024;
+
   @Test
   void parses_set_command_without_noreply() {
     // given
@@ -147,5 +149,35 @@ class SetCommandParserTest {
     // then
     assertThat(thrown).isInstanceOf(ClientError.class)
       .hasMessage("CLIENT_ERROR: bytes must be >= 0, got -1");
+  }
+
+  @Test
+  void parses_bytes_at_maximum_value_size() {
+    // given
+    var parts = new String[]{"set", "mykey", "0", "900", Integer.toString(MAX_VALUE_BYTES)};
+
+    // when
+    var command = parse(parts);
+
+    // then
+    assertThat(command).isEqualTo(setCommand()
+      .key("mykey")
+      .flags(0)
+      .expTime(900)
+      .bytes(MAX_VALUE_BYTES)
+      .build());
+  }
+
+  @Test
+  void throws_on_bytes_above_maximum_value_size() {
+    // given
+    var parts = new String[]{"set", "mykey", "0", "900", Integer.toString(MAX_VALUE_BYTES + 1)};
+
+    // when
+    var thrown = catchThrowable(() -> parse(parts));
+
+    // then
+    assertThat(thrown).isInstanceOf(ClientError.class)
+      .hasMessage("CLIENT_ERROR: bytes exceeds maximum size of 1048576");
   }
 }

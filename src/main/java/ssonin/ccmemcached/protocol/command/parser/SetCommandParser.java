@@ -11,6 +11,8 @@ import static ssonin.ccmemcached.protocol.command.parser.ParsingSupport.parseNoR
 
 final class SetCommandParser {
 
+  private static final int MAX_VALUE_BYTES = 1024 * 1024;
+
   private static final Logger logger = getLogger(SetCommandParser.class);
 
   public static SetCommand parse(String[] parts) {
@@ -56,6 +58,9 @@ final class SetCommandParser {
       final var bytes = Integer.parseInt(value);
       if (bytes < 0) {
         throw new ClientError("bytes must be >= 0, got %d".formatted(bytes));
+      }
+      if (bytes > MAX_VALUE_BYTES) {
+        throw new ClientError("bytes exceeds maximum size of %d".formatted(MAX_VALUE_BYTES));
       }
       return bytes;
     } catch (NumberFormatException e) {

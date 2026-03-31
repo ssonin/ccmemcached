@@ -30,6 +30,7 @@ import static ssonin.ccmemcached.protocol.command.SetCommand.Builder.setCommand;
 class ProtocolHandlerTest {
 
   private static final int MAX_COMMAND_LINE_BYTES = 8192;
+  private static final int MAX_VALUE_BYTES = 1024 * 1024;
 
   private final CacheService cacheService = Mockito.mock(CacheService.class);
   private final NetSocket socket = Mockito.mock(NetSocket.class);
@@ -100,6 +101,15 @@ class ProtocolHandlerTest {
   }
 
   @Test
+  void switches_parser_to_fixed_size_mode_when_value_size_is_at_maximum() {
+    // when
+    parserHandler.handle(buffer("set mykey 42 900 " + MAX_VALUE_BYTES));
+
+    // then
+    then(parser).should().fixedSizeMode(MAX_VALUE_BYTES);
+  }
+
+  @Test
   void writes_error_and_resets_state_after_invalid_command() {
     // given
     var expectedCommand = setCommand()
@@ -121,6 +131,22 @@ class ProtocolHandlerTest {
     then(parser).should(times(3)).delimitedMode("\r\n");
     then(parser).should().fixedSizeMode(5);
     then(cacheService).should().put(eq(expectedCommand), argThat(data -> Arrays.equals(data, "hello".getBytes())));
+  }
+
+  @Test
+  void writes_error_and_recovers_after_value_size_exceeds_maximum() {
+    // given
+    given(cacheService.delete("mykey")).willReturn(true);
+
+    // when
+    parserHandler.handle(buffer("set mykey 0 900 " + (MAX_VALUE_BYTES + 1)));
+    parserHandler.handle(buffer("delete mykey"));
+
+    // then
+    then(socket).should().write("CLIENT_ERROR: bytes exceeds maximum size of 1048576\r\n");
+    then(cacheService).should().delete("mykey");
+    then(socket).should().write("DELETED\r\n");
+    then(parser).should(times(1)).delimitedMode("\r\n");
   }
 
   @Test
