@@ -19,6 +19,8 @@ import static ssonin.ccmemcached.protocol.command.parser.CommandParser.parseComm
 
 public final class ProtocolHandler {
 
+  private static final int MAX_COMMAND_LINE_BYTES = 8 * 1024;
+
   private final CacheService cacheService;
   private final NetSocket socket;
   private final RecordParser parser;
@@ -66,6 +68,9 @@ public final class ProtocolHandler {
   }
 
   private void handleCommandLine(Buffer buffer) {
+    if (buffer.length() > MAX_COMMAND_LINE_BYTES) {
+      throw new ClientError("command line exceeds maximum length of %d bytes".formatted(MAX_COMMAND_LINE_BYTES));
+    }
     final var command = parseCommand(buffer);
     dispatch(command);
   }

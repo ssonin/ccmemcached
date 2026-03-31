@@ -11,6 +11,7 @@ import ssonin.ccmemcached.cache.CacheEntry;
 import ssonin.ccmemcached.cache.CacheService;
 
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -27,6 +28,8 @@ import static org.mockito.Mockito.times;
 import static ssonin.ccmemcached.protocol.command.SetCommand.Builder.setCommand;
 
 class ProtocolHandlerTest {
+
+  private static final int MAX_COMMAND_LINE_BYTES = 8192;
 
   private final CacheService cacheService = Mockito.mock(CacheService.class);
   private final NetSocket socket = Mockito.mock(NetSocket.class);
@@ -121,6 +124,38 @@ class ProtocolHandlerTest {
   }
 
   @Test
+  void accepts_command_line_at_maximum_length() {
+    // given
+    var keys = keysForCommandLineLength(MAX_COMMAND_LINE_BYTES);
+    var command = "get " + String.join(" ", keys);
+    given(cacheService.getAllPresent(keys)).willReturn(Map.of());
+
+    // when
+    parserHandler.handle(buffer(command));
+
+    // then
+    then(cacheService).should().getAllPresent(keys);
+    then(socket).should().write("END\r\n");
+  }
+
+  @Test
+  void writes_error_and_recovers_after_command_line_exceeds_maximum_length() {
+    // given
+    var oversizedKeys = keysForCommandLineLength(MAX_COMMAND_LINE_BYTES + 1);
+    given(cacheService.delete("mykey")).willReturn(true);
+
+    // when
+    parserHandler.handle(buffer("get " + String.join(" ", oversizedKeys)));
+    parserHandler.handle(buffer("delete mykey"));
+
+    // then
+    then(socket).should().write("CLIENT_ERROR: command line exceeds maximum length of 8192 bytes\r\n");
+    then(cacheService).should().delete("mykey");
+    then(socket).should().write("DELETED\r\n");
+    then(parser).should(times(1)).delimitedMode("\r\n");
+  }
+
+  @Test
   void writes_values_for_present_get_keys_in_request_order_and_ends_response() {
     // given
     var keys = List.of("second", "missing", "first");
@@ -192,5 +227,18 @@ class ProtocolHandlerTest {
       return null;
     }).given(parser).handler(any());
     return parser;
+  }
+
+  private static List<String> keysForCommandLineLength(int targetLength) {
+    var keys = new ArrayList<String>();
+    var currentLength = "get".length();
+    var separatorLength = 1;
+    while (currentLength < targetLength) {
+      var remaining = targetLength - currentLength - separatorLength;
+      var keyLength = Math.min(250, remaining);
+      keys.add("k".repeat(keyLength));
+      currentLength += separatorLength + keyLength;
+    }
+    return List.copyOf(keys);
   }
 }
