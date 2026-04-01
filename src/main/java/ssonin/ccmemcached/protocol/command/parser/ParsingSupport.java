@@ -1,10 +1,16 @@
 package ssonin.ccmemcached.protocol.command.parser;
 
+import org.slf4j.Logger;
 import ssonin.ccmemcached.protocol.error.ClientError;
+
+import static org.slf4j.LoggerFactory.getLogger;
 
 final class ParsingSupport {
 
   private static final int MAX_KEY_LENGTH = 250;
+  private static final int MAX_VALUE_BYTES = 1024 * 1024;
+
+  private static final Logger logger = getLogger(ParsingSupport.class);
 
   private ParsingSupport() {
     throw new AssertionError("Utility class");
@@ -34,5 +40,43 @@ final class ParsingSupport {
       return true;
     }
     return false;
+  }
+
+  static int parseFlags(String value) {
+    try {
+      final var flags = Integer.parseInt(value);
+      if (flags < 0 || flags > 65535) {
+        throw new ClientError("flags must be between 0 and 65535, got %d".formatted(flags));
+      }
+      return flags;
+    } catch (NumberFormatException e) {
+      logger.debug("Invalid flags value: {}", value, e);
+      throw new ClientError("flags must be a valid integer, got '%s'".formatted(value));
+    }
+  }
+
+  static int parseExpTime(String value) {
+    try {
+      return Integer.parseInt(value);
+    } catch (NumberFormatException e) {
+      logger.debug("Invalid exptime value: {}", value, e);
+      throw new ClientError("exptime must be a valid integer, got '%s'".formatted(value));
+    }
+  }
+
+  static int parseBytes(String value) {
+    try {
+      final var bytes = Integer.parseInt(value);
+      if (bytes < 0) {
+        throw new ClientError("bytes must be >= 0, got %d".formatted(bytes));
+      }
+      if (bytes > MAX_VALUE_BYTES) {
+        throw new ClientError("bytes exceeds maximum size of %d".formatted(MAX_VALUE_BYTES));
+      }
+      return bytes;
+    } catch (NumberFormatException e) {
+      logger.debug("Invalid bytes value: {}", value, e);
+      throw new ClientError("bytes must be a valid integer, got '%s'".formatted(value));
+    }
   }
 }

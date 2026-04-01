@@ -25,6 +25,7 @@ import static org.mockito.BDDMockito.then;
 import static org.mockito.BDDMockito.willAnswer;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.times;
+import static ssonin.ccmemcached.protocol.command.AddCommand.Builder.addCommand;
 import static ssonin.ccmemcached.protocol.command.SetCommand.Builder.setCommand;
 
 class ProtocolHandlerTest {
@@ -55,6 +56,13 @@ class ProtocolHandlerTest {
     parserHandler.handle(buffer("set mykey 42 900 5"));
 
     // then
+    then(parser).should().fixedSizeMode(5);
+  }
+
+  @Test
+  void switches_parser_to_fixed_size_mode_when_add_command_is_received() {
+    parserHandler.handle(buffer("add mykey 42 900 5"));
+
     then(parser).should().fixedSizeMode(5);
   }
 
@@ -101,6 +109,62 @@ class ProtocolHandlerTest {
   }
 
   @Test
+  void stores_value_and_writes_stored_response_when_add_command_completes() {
+    var expectedCommand = addCommand()
+      .key("mykey")
+      .flags(42)
+      .expTime(900)
+      .bytes(5)
+      .build();
+    given(cacheService.add(eq(expectedCommand), any(byte[].class))).willReturn(true);
+
+    parserHandler.handle(buffer("add mykey 42 900 5"));
+    parserHandler.handle(buffer("value"));
+    parserHandler.handle(buffer("\r\n"));
+
+    then(cacheService).should().add(eq(expectedCommand), argThat(data -> Arrays.equals(data, "value".getBytes())));
+    then(parser).should(times(2)).delimitedMode("\r\n");
+    then(socket).should().write("STORED\r\n");
+  }
+
+  @Test
+  void writes_not_stored_when_add_target_already_exists() {
+    var expectedCommand = addCommand()
+      .key("mykey")
+      .flags(42)
+      .expTime(900)
+      .bytes(5)
+      .build();
+    given(cacheService.add(eq(expectedCommand), any(byte[].class))).willReturn(false);
+
+    parserHandler.handle(buffer("add mykey 42 900 5"));
+    parserHandler.handle(buffer("value"));
+    parserHandler.handle(buffer("\r\n"));
+
+    then(cacheService).should().add(eq(expectedCommand), argThat(data -> Arrays.equals(data, "value".getBytes())));
+    then(socket).should().write("NOT_STORED\r\n");
+  }
+
+  @Test
+  void stores_value_without_writing_response_when_add_uses_noreply() {
+    var expectedCommand = addCommand()
+      .key("mykey")
+      .flags(7)
+      .expTime(900)
+      .bytes(5)
+      .noReply(true)
+      .build();
+    given(cacheService.add(eq(expectedCommand), any(byte[].class))).willReturn(true);
+
+    parserHandler.handle(buffer("add mykey 7 900 5 noreply"));
+    parserHandler.handle(buffer("value"));
+    parserHandler.handle(buffer("\r\n"));
+
+    then(cacheService).should().add(eq(expectedCommand), argThat(data -> Arrays.equals(data, "value".getBytes())));
+    then(socket).shouldHaveNoMoreInteractions();
+  }
+
+  @Test
   void switches_parser_to_fixed_size_mode_when_value_size_is_at_maximum() {
     // when
     parserHandler.handle(buffer("set mykey 42 900 " + MAX_VALUE_BYTES));
@@ -131,6 +195,28 @@ class ProtocolHandlerTest {
     then(parser).should(times(3)).delimitedMode("\r\n");
     then(parser).should().fixedSizeMode(5);
     then(cacheService).should().put(eq(expectedCommand), argThat(data -> Arrays.equals(data, "hello".getBytes())));
+  }
+
+  @Test
+  void writes_error_and_recovers_after_invalid_add_command() {
+    var expectedCommand = addCommand()
+      .key("next")
+      .flags(9)
+      .expTime(60)
+      .bytes(5)
+      .build();
+    given(cacheService.add(eq(expectedCommand), any(byte[].class))).willReturn(true);
+
+    parserHandler.handle(buffer("add mykey 0 900"));
+    parserHandler.handle(buffer("add next 9 60 5"));
+    parserHandler.handle(buffer("hello"));
+    parserHandler.handle(buffer("\r\n"));
+
+    then(socket).should().write("CLIENT_ERROR: expected at least 5 fields, got 4\r\n");
+    then(socket).should().write("STORED\r\n");
+    then(parser).should(times(3)).delimitedMode("\r\n");
+    then(parser).should().fixedSizeMode(5);
+    then(cacheService).should().add(eq(expectedCommand), argThat(data -> Arrays.equals(data, "hello".getBytes())));
   }
 
   @Test

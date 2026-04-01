@@ -1,7 +1,9 @@
 package ssonin.ccmemcached.cache;
 
 import com.github.benmanes.caffeine.cache.Cache;
+import ssonin.ccmemcached.protocol.command.AddCommand;
 import ssonin.ccmemcached.protocol.command.SetCommand;
+import ssonin.ccmemcached.protocol.command.StorageCommand;
 
 import java.time.Duration;
 import java.time.Instant;
@@ -37,12 +39,11 @@ public final class CacheService {
   }
 
   public void put(SetCommand command, byte[] data) {
-    final var entry = cacheEntry()
-      .flags(command.flags())
-      .ttl(evaluateTtl(command.expTime()))
-      .data(data)
-      .build();
-    delegate.put(command.key(), entry);
+    delegate.put(command.key(), toCacheEntry(command, data));
+  }
+
+  public boolean add(AddCommand command, byte[] data) {
+    return delegate.asMap().putIfAbsent(command.key(), toCacheEntry(command, data)) == null;
   }
 
   private Duration evaluateTtl(long expTime) {
@@ -54,5 +55,13 @@ public final class CacheService {
       final var expiry = Instant.ofEpochSecond(expTime);
       return Duration.between(clock.instant(), expiry);
     }
+  }
+
+  private CacheEntry toCacheEntry(StorageCommand command, byte[] data) {
+    return cacheEntry()
+      .flags(command.flags())
+      .ttl(evaluateTtl(command.expTime()))
+      .data(data)
+      .build();
   }
 }

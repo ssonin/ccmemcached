@@ -1,6 +1,7 @@
 package ssonin.ccmemcached.protocol.command.parser;
 
 import org.junit.jupiter.api.Test;
+import ssonin.ccmemcached.protocol.command.AddCommand;
 import ssonin.ccmemcached.protocol.command.DeleteCommand;
 import ssonin.ccmemcached.protocol.command.GetCommand;
 import ssonin.ccmemcached.protocol.error.ApplicationError;
@@ -11,6 +12,8 @@ import java.util.List;
 import static io.vertx.core.buffer.Buffer.buffer;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.catchThrowable;
+import static ssonin.ccmemcached.protocol.command.AddCommand.Builder.addCommand;
+import static ssonin.ccmemcached.protocol.command.CommandName.ADD;
 import static ssonin.ccmemcached.protocol.command.CommandName.DELETE;
 import static ssonin.ccmemcached.protocol.command.CommandName.GET;
 import static ssonin.ccmemcached.protocol.command.CommandName.SET;
@@ -37,12 +40,29 @@ class CommandParserTest {
   }
 
   @Test
+  void dispatches_to_add_command_parser() {
+    var input = buffer("add mykey 0 900 5");
+
+    var command = parseCommand(input);
+
+    assertThat(command).isEqualTo(addCommand()
+      .key("mykey")
+      .flags(0)
+      .expTime(900)
+      .bytes(5)
+      .build());
+    assertThat(command.name()).isEqualTo(ADD);
+  }
+
+  @Test
   void resolves_command_name_case_insensitively() {
     // when
+    var fromAdd = parseCommand(buffer("Add mykey 0 900 5"));
     var fromUpper = parseCommand(buffer("SET mykey 0 900 5"));
     var fromMixed = parseCommand(buffer("Set mykey 0 900 5"));
 
     // then
+    assertThat(fromAdd).isInstanceOf(AddCommand.class);
     assertThat(fromUpper.name()).isEqualTo(SET);
     assertThat(fromMixed.name()).isEqualTo(SET);
   }

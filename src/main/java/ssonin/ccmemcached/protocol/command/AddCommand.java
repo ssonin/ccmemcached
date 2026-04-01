@@ -1,8 +1,8 @@
 package ssonin.ccmemcached.protocol.command;
 
-import static ssonin.ccmemcached.protocol.command.CommandName.SET;
+import static ssonin.ccmemcached.protocol.command.CommandName.ADD;
 
-public record SetCommand(
+public record AddCommand(
   String key,
   int flags,
   int expTime,
@@ -12,7 +12,7 @@ public record SetCommand(
 
   @Override
   public CommandName name() {
-    return SET;
+    return ADD;
   }
 
   public static final class Builder {
@@ -23,7 +23,7 @@ public record SetCommand(
     private int bytes;
     private boolean noReply;
 
-    public static Builder setCommand() {
+    public static Builder addCommand() {
       return new Builder();
     }
 
@@ -52,8 +52,8 @@ public record SetCommand(
       return this;
     }
 
-    public SetCommand build() {
-      return new SetCommand(key, flags, expTime, bytes, noReply);
+    public AddCommand build() {
+      return new AddCommand(key, flags, expTime, bytes, noReply);
     }
   }
 }

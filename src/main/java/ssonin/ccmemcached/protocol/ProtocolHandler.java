@@ -4,10 +4,12 @@ import io.vertx.core.buffer.Buffer;
 import io.vertx.core.net.NetSocket;
 import io.vertx.core.parsetools.RecordParser;
 import ssonin.ccmemcached.cache.CacheService;
+import ssonin.ccmemcached.protocol.command.AddCommand;
 import ssonin.ccmemcached.protocol.command.Command;
 import ssonin.ccmemcached.protocol.command.DeleteCommand;
 import ssonin.ccmemcached.protocol.command.GetCommand;
 import ssonin.ccmemcached.protocol.command.SetCommand;
+import ssonin.ccmemcached.protocol.command.StorageCommand;
 import ssonin.ccmemcached.protocol.error.ApplicationError;
 import ssonin.ccmemcached.protocol.error.ClientError;
 
@@ -25,7 +27,7 @@ public final class ProtocolHandler {
   private final NetSocket socket;
   private final RecordParser parser;
   private State state = AWAITING_COMMAND;
-  private SetCommand pendingStorageCommand;
+  private StorageCommand pendingStorageCommand;
   private byte[] data;
 
   public ProtocolHandler(CacheService cacheService, NetSocket socket) {
@@ -77,6 +79,7 @@ public final class ProtocolHandler {
 
   private void dispatch(Command command) {
     switch (command) {
+      case AddCommand addCommand -> startStorage(addCommand);
       case DeleteCommand deleteCommand -> handleDelete(deleteCommand);
       case GetCommand getCommand -> startRetrieval(getCommand);
       case SetCommand setCommand -> startStorage(setCommand);
@@ -105,7 +108,7 @@ public final class ProtocolHandler {
     socket.write("END\r\n");
   }
 
-  private void startStorage(SetCommand command) {
+  private void startStorage(StorageCommand command) {
     pendingStorageCommand = command;
     state = AWAITING_DATA;
     parser.fixedSizeMode(command.bytes());
@@ -118,9 +121,15 @@ public final class ProtocolHandler {
   }
 
   private void completeStorageWrite() {
-    cacheService.put(pendingStorageCommand, data);
+    final var response = switch (pendingStorageCommand) {
+      case AddCommand addCommand -> cacheService.add(addCommand, data) ? "STORED" : "NOT_STORED";
+      case SetCommand setCommand -> {
+        cacheService.put(setCommand, data);
+        yield "STORED";
+      }
+    };
     if (!pendingStorageCommand.noReply()) {
-      socket.write("STORED\r\n");
+      socket.write("%s\r\n".formatted(response));
     }
     resetState();
   }
