@@ -1,94 +1,102 @@
 package ssonin.ccmemcached;
 
+import com.github.benmanes.caffeine.cache.Caffeine;
+import com.google.common.testing.FakeTicker;
 import io.vertx.core.DeploymentOptions;
 import io.vertx.core.Vertx;
 import io.vertx.core.json.JsonObject;
-import io.vertx.junit5.VertxExtension;
-import io.vertx.junit5.VertxTestContext;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
+import ssonin.ccmemcached.cache.CacheEntry;
+import ssonin.ccmemcached.cache.CacheEntryExpiry;
+import ssonin.ccmemcached.cache.CacheService;
 
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketTimeoutException;
+import java.time.Instant;
+import java.util.concurrent.TimeUnit;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-@ExtendWith(VertxExtension.class)
-class AddCommandIntegrationTest {
+class TouchCommandIntegrationTest {
 
-  private String deploymentId;
+  private Vertx vertx;
+  private CacheService cacheService;
+  private FakeTicker ticker;
   private int port;
 
   @BeforeEach
-  void deploy_app(Vertx vertx, VertxTestContext testContext) throws IOException {
-    var testPort = nextFreePort();
-    vertx.deployVerticle(
-        new App(),
-        new DeploymentOptions().setConfig(new JsonObject().put("http.port", testPort)))
-      .onComplete(testContext.succeeding(id -> testContext.verify(() -> {
-        deploymentId = id;
-        port = testPort;
-        testContext.completeNow();
-      })));
+  void setUp() throws Exception {
+    vertx = Vertx.vertx();
+    ticker = new FakeTicker();
+    cacheService = new CacheService(
+      Caffeine.newBuilder()
+        .expireAfter(new CacheEntryExpiry())
+        .executor(Runnable::run)
+        .ticker(ticker::read)
+        .build(),
+      () -> Instant.ofEpochMilli(ticker.read() / 1_000_000L)
+    );
+    port = nextFreePort();
+    await(vertx.deployVerticle(
+      new App(() -> cacheService),
+      new DeploymentOptions().setConfig(new JsonObject().put("http.port", port))
+    ));
   }
 
   @AfterEach
-  void undeploy_app(Vertx vertx, VertxTestContext testContext) {
-    if (deploymentId == null) {
-      testContext.completeNow();
-      return;
-    }
-
-    vertx.undeploy(deploymentId).onComplete(testContext.succeeding(v -> testContext.completeNow()));
-  }
-
-  @Test
-  void add_persists_missing_value_retrievable_via_get() throws Exception {
-    try (var client = connect()) {
-      // when
-      sendAdd(client, "mykey", 7, 60, "value");
-      writeAscii(client, "get mykey\r\n");
-
-      // then
-      assertThat(readUntilEnd(client)).isEqualTo(normalizeCrlf("""
-        VALUE mykey 7 5
-        value
-        END
-        """));
+  void tearDown() {
+    if (vertx != null) {
+      await(vertx.close());
     }
   }
 
   @Test
-  void add_returns_not_stored_and_preserves_existing_value() throws Exception {
+  void touch_updates_expiration_and_returns_touched() throws Exception {
     try (var client = connect()) {
       // given
-      sendAdd(client, "mykey", 1, 60, "first");
+      sendSet(client, "mykey", 7, 1, "value");
 
       // when
-      writeAscii(client, "add mykey 2 60 6\r\nsecond\r\n");
-      assertThat(readLine(client)).isEqualTo("NOT_STORED\r\n");
+      writeAscii(client, "touch mykey 60\r\n");
 
       // then
+      assertThat(readLine(client)).isEqualTo("TOUCHED\r\n");
+
+      // when
+      ticker.advance(1200, TimeUnit.MILLISECONDS);
+      cacheService.cleanUp();
       writeAscii(client, "get mykey\r\n");
-      assertThat(readUntilEnd(client)).isEqualTo(normalizeCrlf("""
-        VALUE mykey 1 5
-        first
-        END
-        """));
+
+      // then
+      assertThat(readUntilEnd(client)).isEqualTo("VALUE mykey 7 5\r\nvalue\r\nEND\r\n");
     }
   }
 
   @Test
-  void add_with_noreply_stores_missing_value_without_immediate_response() throws Exception {
+  void touch_returns_not_found_for_missing_key() throws Exception {
     try (var client = connect()) {
       // when
-      writeAscii(client, "add quiet 3 60 5 noreply\r\nvalue\r\n");
+      writeAscii(client, "touch missing 60\r\n");
+
+      // then
+      assertThat(readLine(client)).isEqualTo("NOT_FOUND\r\n");
+    }
+  }
+
+  @Test
+  void touch_with_noreply_updates_expiration_without_immediate_response() throws Exception {
+    try (var client = connect()) {
+      // given
+      sendSet(client, "quiet", 3, 1, "value");
+
+      // when
+      writeAscii(client, "touch quiet 60 noreply\r\n");
 
       // then
       client.setSoTimeout(200);
@@ -96,15 +104,13 @@ class AddCommandIntegrationTest {
         .isInstanceOf(SocketTimeoutException.class);
 
       // when
+      ticker.advance(1200, TimeUnit.MILLISECONDS);
+      cacheService.cleanUp();
       client.setSoTimeout(2000);
       writeAscii(client, "get quiet\r\n");
 
       // then
-      assertThat(readUntilEnd(client)).isEqualTo(normalizeCrlf("""
-        VALUE quiet 3 5
-        value
-        END
-        """));
+      assertThat(readUntilEnd(client)).isEqualTo("VALUE quiet 3 5\r\nvalue\r\nEND\r\n");
     }
   }
 
@@ -118,8 +124,8 @@ class AddCommandIntegrationTest {
     return new Socket("127.0.0.1", port);
   }
 
-  private void sendAdd(Socket client, String key, int flags, int exptime, String value) throws IOException {
-    writeAscii(client, "add %s %d %d %d\r\n%s\r\n".formatted(key, flags, exptime, value.length(), value));
+  private void sendSet(Socket client, String key, int flags, int exptime, String value) throws IOException {
+    writeAscii(client, "set %s %d %d %d\r\n%s\r\n".formatted(key, flags, exptime, value.length(), value));
     assertThat(readLine(client)).isEqualTo("STORED\r\n");
   }
 
@@ -155,7 +161,7 @@ class AddCommandIntegrationTest {
     return buffer.toString();
   }
 
-  private String normalizeCrlf(String response) {
-    return response.replace("\n", "\r\n");
+  private static <T> T await(io.vertx.core.Future<T> future) {
+    return future.toCompletionStage().toCompletableFuture().join();
   }
 }

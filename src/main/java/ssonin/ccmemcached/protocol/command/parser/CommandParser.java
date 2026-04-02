@@ -13,6 +13,7 @@ import static java.util.Objects.requireNonNull;
 import static ssonin.ccmemcached.protocol.command.CommandName.ADD;
 import static ssonin.ccmemcached.protocol.command.CommandName.DELETE;
 import static ssonin.ccmemcached.protocol.command.CommandName.GET;
+import static ssonin.ccmemcached.protocol.command.CommandName.REPLACE;
 import static ssonin.ccmemcached.protocol.command.CommandName.SET;
 
 public final class CommandParser {
@@ -21,6 +22,7 @@ public final class CommandParser {
     ADD, AddCommandParser::parse,
     DELETE, DeleteCommandParser::parse,
     GET, GetCommandParser::parse,
+    REPLACE, ReplaceCommandParser::parse,
     SET, SetCommandParser::parse
   );
 

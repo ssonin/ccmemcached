@@ -26,6 +26,7 @@ import static org.mockito.BDDMockito.willAnswer;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.times;
 import static ssonin.ccmemcached.protocol.command.AddCommand.Builder.addCommand;
+import static ssonin.ccmemcached.protocol.command.ReplaceCommand.Builder.replaceCommand;
 import static ssonin.ccmemcached.protocol.command.SetCommand.Builder.setCommand;
 
 class ProtocolHandlerTest {
@@ -61,8 +62,19 @@ class ProtocolHandlerTest {
 
   @Test
   void switches_parser_to_fixed_size_mode_when_add_command_is_received() {
+    // when
     parserHandler.handle(buffer("add mykey 42 900 5"));
 
+    // then
+    then(parser).should().fixedSizeMode(5);
+  }
+
+  @Test
+  void switches_parser_to_fixed_size_mode_when_replace_command_is_received() {
+    // when
+    parserHandler.handle(buffer("replace mykey 42 900 5"));
+
+    // then
     then(parser).should().fixedSizeMode(5);
   }
 
@@ -110,6 +122,7 @@ class ProtocolHandlerTest {
 
   @Test
   void stores_value_and_writes_stored_response_when_add_command_completes() {
+    // given
     var expectedCommand = addCommand()
       .key("mykey")
       .flags(42)
@@ -118,10 +131,12 @@ class ProtocolHandlerTest {
       .build();
     given(cacheService.add(eq(expectedCommand), any(byte[].class))).willReturn(true);
 
+    // when
     parserHandler.handle(buffer("add mykey 42 900 5"));
     parserHandler.handle(buffer("value"));
     parserHandler.handle(buffer("\r\n"));
 
+    // then
     then(cacheService).should().add(eq(expectedCommand), argThat(data -> Arrays.equals(data, "value".getBytes())));
     then(parser).should(times(2)).delimitedMode("\r\n");
     then(socket).should().write("STORED\r\n");
@@ -129,6 +144,7 @@ class ProtocolHandlerTest {
 
   @Test
   void writes_not_stored_when_add_target_already_exists() {
+    // given
     var expectedCommand = addCommand()
       .key("mykey")
       .flags(42)
@@ -137,16 +153,19 @@ class ProtocolHandlerTest {
       .build();
     given(cacheService.add(eq(expectedCommand), any(byte[].class))).willReturn(false);
 
+    // when
     parserHandler.handle(buffer("add mykey 42 900 5"));
     parserHandler.handle(buffer("value"));
     parserHandler.handle(buffer("\r\n"));
 
+    // then
     then(cacheService).should().add(eq(expectedCommand), argThat(data -> Arrays.equals(data, "value".getBytes())));
     then(socket).should().write("NOT_STORED\r\n");
   }
 
   @Test
   void stores_value_without_writing_response_when_add_uses_noreply() {
+    // given
     var expectedCommand = addCommand()
       .key("mykey")
       .flags(7)
@@ -156,11 +175,78 @@ class ProtocolHandlerTest {
       .build();
     given(cacheService.add(eq(expectedCommand), any(byte[].class))).willReturn(true);
 
+    // when
     parserHandler.handle(buffer("add mykey 7 900 5 noreply"));
     parserHandler.handle(buffer("value"));
     parserHandler.handle(buffer("\r\n"));
 
+    // then
     then(cacheService).should().add(eq(expectedCommand), argThat(data -> Arrays.equals(data, "value".getBytes())));
+    then(socket).shouldHaveNoMoreInteractions();
+  }
+
+  @Test
+  void stores_value_and_writes_stored_response_when_replace_command_completes() {
+    // given
+    var expectedCommand = replaceCommand()
+      .key("mykey")
+      .flags(42)
+      .expTime(900)
+      .bytes(5)
+      .build();
+    given(cacheService.replace(eq(expectedCommand), any(byte[].class))).willReturn(true);
+
+    // when
+    parserHandler.handle(buffer("replace mykey 42 900 5"));
+    parserHandler.handle(buffer("value"));
+    parserHandler.handle(buffer("\r\n"));
+
+    // then
+    then(cacheService).should().replace(eq(expectedCommand), argThat(data -> Arrays.equals(data, "value".getBytes())));
+    then(parser).should(times(2)).delimitedMode("\r\n");
+    then(socket).should().write("STORED\r\n");
+  }
+
+  @Test
+  void writes_not_stored_when_replace_target_is_missing() {
+    // given
+    var expectedCommand = replaceCommand()
+      .key("mykey")
+      .flags(42)
+      .expTime(900)
+      .bytes(5)
+      .build();
+    given(cacheService.replace(eq(expectedCommand), any(byte[].class))).willReturn(false);
+
+    // when
+    parserHandler.handle(buffer("replace mykey 42 900 5"));
+    parserHandler.handle(buffer("value"));
+    parserHandler.handle(buffer("\r\n"));
+
+    // then
+    then(cacheService).should().replace(eq(expectedCommand), argThat(data -> Arrays.equals(data, "value".getBytes())));
+    then(socket).should().write("NOT_STORED\r\n");
+  }
+
+  @Test
+  void stores_value_without_writing_response_when_replace_uses_noreply() {
+    // given
+    var expectedCommand = replaceCommand()
+      .key("mykey")
+      .flags(7)
+      .expTime(900)
+      .bytes(5)
+      .noReply(true)
+      .build();
+    given(cacheService.replace(eq(expectedCommand), any(byte[].class))).willReturn(true);
+
+    // when
+    parserHandler.handle(buffer("replace mykey 7 900 5 noreply"));
+    parserHandler.handle(buffer("value"));
+    parserHandler.handle(buffer("\r\n"));
+
+    // then
+    then(cacheService).should().replace(eq(expectedCommand), argThat(data -> Arrays.equals(data, "value".getBytes())));
     then(socket).shouldHaveNoMoreInteractions();
   }
 
@@ -199,6 +285,7 @@ class ProtocolHandlerTest {
 
   @Test
   void writes_error_and_recovers_after_invalid_add_command() {
+    // given
     var expectedCommand = addCommand()
       .key("next")
       .flags(9)
@@ -207,16 +294,43 @@ class ProtocolHandlerTest {
       .build();
     given(cacheService.add(eq(expectedCommand), any(byte[].class))).willReturn(true);
 
+    // when
     parserHandler.handle(buffer("add mykey 0 900"));
     parserHandler.handle(buffer("add next 9 60 5"));
     parserHandler.handle(buffer("hello"));
     parserHandler.handle(buffer("\r\n"));
 
+    // then
     then(socket).should().write("CLIENT_ERROR: expected at least 5 fields, got 4\r\n");
     then(socket).should().write("STORED\r\n");
     then(parser).should(times(3)).delimitedMode("\r\n");
     then(parser).should().fixedSizeMode(5);
     then(cacheService).should().add(eq(expectedCommand), argThat(data -> Arrays.equals(data, "hello".getBytes())));
+  }
+
+  @Test
+  void writes_error_and_recovers_after_invalid_replace_command() {
+    // given
+    var expectedCommand = replaceCommand()
+      .key("next")
+      .flags(9)
+      .expTime(60)
+      .bytes(5)
+      .build();
+    given(cacheService.replace(eq(expectedCommand), any(byte[].class))).willReturn(true);
+
+    // when
+    parserHandler.handle(buffer("replace mykey 0 900"));
+    parserHandler.handle(buffer("replace next 9 60 5"));
+    parserHandler.handle(buffer("hello"));
+    parserHandler.handle(buffer("\r\n"));
+
+    // then
+    then(socket).should().write("CLIENT_ERROR: expected at least 5 fields, got 4\r\n");
+    then(socket).should().write("STORED\r\n");
+    then(parser).should(times(3)).delimitedMode("\r\n");
+    then(parser).should().fixedSizeMode(5);
+    then(cacheService).should().replace(eq(expectedCommand), argThat(data -> Arrays.equals(data, "hello".getBytes())));
   }
 
   @Test

@@ -8,6 +8,7 @@ import ssonin.ccmemcached.protocol.command.AddCommand;
 import ssonin.ccmemcached.protocol.command.Command;
 import ssonin.ccmemcached.protocol.command.DeleteCommand;
 import ssonin.ccmemcached.protocol.command.GetCommand;
+import ssonin.ccmemcached.protocol.command.ReplaceCommand;
 import ssonin.ccmemcached.protocol.command.SetCommand;
 import ssonin.ccmemcached.protocol.command.StorageCommand;
 import ssonin.ccmemcached.protocol.error.ApplicationError;
@@ -82,6 +83,7 @@ public final class ProtocolHandler {
       case AddCommand addCommand -> startStorage(addCommand);
       case DeleteCommand deleteCommand -> handleDelete(deleteCommand);
       case GetCommand getCommand -> startRetrieval(getCommand);
+      case ReplaceCommand replaceCommand -> startStorage(replaceCommand);
       case SetCommand setCommand -> startStorage(setCommand);
       default -> throw new ClientError("command '%s' is not implemented".formatted(command.name().name().toLowerCase()));
     }
@@ -123,6 +125,7 @@ public final class ProtocolHandler {
   private void completeStorageWrite() {
     final var response = switch (pendingStorageCommand) {
       case AddCommand addCommand -> cacheService.add(addCommand, data) ? "STORED" : "NOT_STORED";
+      case ReplaceCommand replaceCommand -> cacheService.replace(replaceCommand, data) ? "STORED" : "NOT_STORED";
       case SetCommand setCommand -> {
         cacheService.put(setCommand, data);
         yield "STORED";

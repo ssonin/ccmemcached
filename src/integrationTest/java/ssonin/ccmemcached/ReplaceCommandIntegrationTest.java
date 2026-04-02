@@ -20,7 +20,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @ExtendWith(VertxExtension.class)
-class AddCommandIntegrationTest {
+class ReplaceCommandIntegrationTest {
 
   private String deploymentId;
   private int port;
@@ -49,46 +49,52 @@ class AddCommandIntegrationTest {
   }
 
   @Test
-  void add_persists_missing_value_retrievable_via_get() throws Exception {
-    try (var client = connect()) {
-      // when
-      sendAdd(client, "mykey", 7, 60, "value");
-      writeAscii(client, "get mykey\r\n");
-
-      // then
-      assertThat(readUntilEnd(client)).isEqualTo(normalizeCrlf("""
-        VALUE mykey 7 5
-        value
-        END
-        """));
-    }
-  }
-
-  @Test
-  void add_returns_not_stored_and_preserves_existing_value() throws Exception {
+  void replace_updates_existing_value_retrievable_via_get() throws Exception {
     try (var client = connect()) {
       // given
-      sendAdd(client, "mykey", 1, 60, "first");
+      sendSet(client, "mykey", 1, 60, "first");
 
       // when
-      writeAscii(client, "add mykey 2 60 6\r\nsecond\r\n");
-      assertThat(readLine(client)).isEqualTo("NOT_STORED\r\n");
+      writeAscii(client, "replace mykey 7 60 6\r\nsecond\r\n");
+      assertThat(readLine(client)).isEqualTo("STORED\r\n");
 
       // then
       writeAscii(client, "get mykey\r\n");
       assertThat(readUntilEnd(client)).isEqualTo(normalizeCrlf("""
-        VALUE mykey 1 5
-        first
+        VALUE mykey 7 6
+        second
         END
         """));
     }
   }
 
   @Test
-  void add_with_noreply_stores_missing_value_without_immediate_response() throws Exception {
+  void replace_returns_not_stored_when_key_is_missing() throws Exception {
     try (var client = connect()) {
       // when
-      writeAscii(client, "add quiet 3 60 5 noreply\r\nvalue\r\n");
+      writeAscii(client, "replace mykey 2 60 6\r\nsecond\r\n");
+
+      // then
+      assertThat(readLine(client)).isEqualTo("NOT_STORED\r\n");
+
+      // when
+      writeAscii(client, "get mykey\r\n");
+
+      // then
+      assertThat(readUntilEnd(client)).isEqualTo(normalizeCrlf("""
+        END
+        """));
+    }
+  }
+
+  @Test
+  void replace_with_noreply_updates_existing_value_without_immediate_response() throws Exception {
+    try (var client = connect()) {
+      // given
+      sendSet(client, "quiet", 1, 60, "first");
+
+      // when
+      writeAscii(client, "replace quiet 3 60 5 noreply\r\nvalue\r\n");
 
       // then
       client.setSoTimeout(200);
@@ -118,8 +124,8 @@ class AddCommandIntegrationTest {
     return new Socket("127.0.0.1", port);
   }
 
-  private void sendAdd(Socket client, String key, int flags, int exptime, String value) throws IOException {
-    writeAscii(client, "add %s %d %d %d\r\n%s\r\n".formatted(key, flags, exptime, value.length(), value));
+  private void sendSet(Socket client, String key, int flags, int exptime, String value) throws IOException {
+    writeAscii(client, "set %s %d %d %d\r\n%s\r\n".formatted(key, flags, exptime, value.length(), value));
     assertThat(readLine(client)).isEqualTo("STORED\r\n");
   }
 

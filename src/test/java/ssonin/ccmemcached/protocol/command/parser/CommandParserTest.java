@@ -4,6 +4,7 @@ import org.junit.jupiter.api.Test;
 import ssonin.ccmemcached.protocol.command.AddCommand;
 import ssonin.ccmemcached.protocol.command.DeleteCommand;
 import ssonin.ccmemcached.protocol.command.GetCommand;
+import ssonin.ccmemcached.protocol.command.ReplaceCommand;
 import ssonin.ccmemcached.protocol.error.ApplicationError;
 import ssonin.ccmemcached.protocol.error.CommandNameError;
 
@@ -16,7 +17,9 @@ import static ssonin.ccmemcached.protocol.command.AddCommand.Builder.addCommand;
 import static ssonin.ccmemcached.protocol.command.CommandName.ADD;
 import static ssonin.ccmemcached.protocol.command.CommandName.DELETE;
 import static ssonin.ccmemcached.protocol.command.CommandName.GET;
+import static ssonin.ccmemcached.protocol.command.CommandName.REPLACE;
 import static ssonin.ccmemcached.protocol.command.CommandName.SET;
+import static ssonin.ccmemcached.protocol.command.ReplaceCommand.Builder.replaceCommand;
 import static ssonin.ccmemcached.protocol.command.SetCommand.Builder.setCommand;
 import static ssonin.ccmemcached.protocol.command.parser.CommandParser.parseCommand;
 
@@ -41,10 +44,13 @@ class CommandParserTest {
 
   @Test
   void dispatches_to_add_command_parser() {
+    // given
     var input = buffer("add mykey 0 900 5");
 
+    // when
     var command = parseCommand(input);
 
+    // then
     assertThat(command).isEqualTo(addCommand()
       .key("mykey")
       .flags(0)
@@ -55,14 +61,34 @@ class CommandParserTest {
   }
 
   @Test
+  void dispatches_to_replace_command_parser() {
+    // given
+    var input = buffer("replace mykey 0 900 5");
+
+    // when
+    var command = parseCommand(input);
+
+    // then
+    assertThat(command).isEqualTo(replaceCommand()
+      .key("mykey")
+      .flags(0)
+      .expTime(900)
+      .bytes(5)
+      .build());
+    assertThat(command.name()).isEqualTo(REPLACE);
+  }
+
+  @Test
   void resolves_command_name_case_insensitively() {
     // when
     var fromAdd = parseCommand(buffer("Add mykey 0 900 5"));
+    var fromReplace = parseCommand(buffer("RePlAcE mykey 0 900 5"));
     var fromUpper = parseCommand(buffer("SET mykey 0 900 5"));
     var fromMixed = parseCommand(buffer("Set mykey 0 900 5"));
 
     // then
     assertThat(fromAdd).isInstanceOf(AddCommand.class);
+    assertThat(fromReplace).isInstanceOf(ReplaceCommand.class);
     assertThat(fromUpper.name()).isEqualTo(SET);
     assertThat(fromMixed.name()).isEqualTo(SET);
   }

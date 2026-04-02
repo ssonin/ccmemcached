@@ -18,6 +18,7 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
 import static org.mockito.Mockito.mock;
 import static ssonin.ccmemcached.protocol.command.AddCommand.Builder.addCommand;
+import static ssonin.ccmemcached.protocol.command.ReplaceCommand.Builder.replaceCommand;
 import static ssonin.ccmemcached.protocol.command.SetCommand.Builder.setCommand;
 
 class CacheServiceTest {
@@ -92,6 +93,7 @@ class CacheServiceTest {
 
     @Test
     void stores_entry_when_key_is_absent() {
+      // given
       var entries = new ConcurrentHashMap<String, CacheEntry>();
       given(delegate.asMap()).willReturn(entries);
       var command = addCommand()
@@ -102,8 +104,10 @@ class CacheServiceTest {
         .build();
       var data = "value".getBytes();
 
+      // when
       var stored = tested.add(command, data);
 
+      // then
       assertThat(stored).isTrue();
       assertThat(entries).containsEntry("mykey", new CacheEntry(7, ofSeconds(900), data));
       then(delegate).should().asMap();
@@ -111,6 +115,7 @@ class CacheServiceTest {
 
     @Test
     void returns_false_and_preserves_existing_entry_when_key_exists() {
+      // given
       var existing = new CacheEntry(1, ofSeconds(30), "first".getBytes());
       var entries = new ConcurrentHashMap<String, CacheEntry>();
       entries.put("mykey", existing);
@@ -122,10 +127,60 @@ class CacheServiceTest {
         .bytes(6)
         .build();
 
+      // when
       var stored = tested.add(command, "second".getBytes());
 
+      // then
       assertThat(stored).isFalse();
       assertThat(entries).containsEntry("mykey", existing);
+      then(delegate).should().asMap();
+    }
+  }
+
+  @Nested
+  class ReplaceOperation {
+
+    @Test
+    void stores_entry_when_key_is_present() {
+      // given
+      var entries = new ConcurrentHashMap<String, CacheEntry>();
+      entries.put("mykey", new CacheEntry(1, ofSeconds(30), "first".getBytes()));
+      given(delegate.asMap()).willReturn(entries);
+      var command = replaceCommand()
+        .key("mykey")
+        .flags(7)
+        .expTime(900)
+        .bytes(6)
+        .build();
+      var data = "second".getBytes();
+
+      // when
+      var stored = tested.replace(command, data);
+
+      // then
+      assertThat(stored).isTrue();
+      assertThat(entries).containsEntry("mykey", new CacheEntry(7, ofSeconds(900), data));
+      then(delegate).should().asMap();
+    }
+
+    @Test
+    void returns_false_when_key_is_absent() {
+      // given
+      var entries = new ConcurrentHashMap<String, CacheEntry>();
+      given(delegate.asMap()).willReturn(entries);
+      var command = replaceCommand()
+        .key("mykey")
+        .flags(7)
+        .expTime(900)
+        .bytes(6)
+        .build();
+
+      // when
+      var stored = tested.replace(command, "second".getBytes());
+
+      // then
+      assertThat(stored).isFalse();
+      assertThat(entries).doesNotContainKey("mykey");
       then(delegate).should().asMap();
     }
   }

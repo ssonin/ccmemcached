@@ -2,6 +2,7 @@ package ssonin.ccmemcached.cache;
 
 import com.github.benmanes.caffeine.cache.Cache;
 import ssonin.ccmemcached.protocol.command.AddCommand;
+import ssonin.ccmemcached.protocol.command.ReplaceCommand;
 import ssonin.ccmemcached.protocol.command.SetCommand;
 import ssonin.ccmemcached.protocol.command.StorageCommand;
 
@@ -44,6 +45,10 @@ public final class CacheService {
 
   public boolean add(AddCommand command, byte[] data) {
     return delegate.asMap().putIfAbsent(command.key(), toCacheEntry(command, data)) == null;
+  }
+
+  public boolean replace(ReplaceCommand command, byte[] data) {
+    return delegate.asMap().computeIfPresent(command.key(), (key, existing) -> toCacheEntry(command, data)) != null;
   }
 
   private Duration evaluateTtl(long expTime) {
