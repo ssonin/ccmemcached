@@ -237,4 +237,42 @@ class CacheServiceTest {
       then(delegate).should().asMap();
     }
   }
+
+  @Nested
+  class TouchOperation {
+
+    @Test
+    void updates_ttl_and_preserves_flags_and_data_when_key_exists() {
+      // given
+      var existingData = "value".getBytes();
+      var entries = new ConcurrentHashMap<String, CacheEntry>();
+      entries.put("mykey", new CacheEntry(7, ofSeconds(30), existingData));
+      given(delegate.asMap()).willReturn(entries);
+      var command = new ssonin.ccmemcached.protocol.command.TouchCommand("mykey", 900, false);
+
+      // when
+      var touched = tested.touch(command);
+
+      // then
+      assertThat(touched).isTrue();
+      assertThat(entries).containsEntry("mykey", new CacheEntry(7, ofSeconds(900), existingData));
+      then(delegate).should().asMap();
+    }
+
+    @Test
+    void returns_false_when_key_is_absent() {
+      // given
+      var entries = new ConcurrentHashMap<String, CacheEntry>();
+      given(delegate.asMap()).willReturn(entries);
+      var command = new ssonin.ccmemcached.protocol.command.TouchCommand("missing", 900, false);
+
+      // when
+      var touched = tested.touch(command);
+
+      // then
+      assertThat(touched).isFalse();
+      assertThat(entries).doesNotContainKey("missing");
+      then(delegate).should().asMap();
+    }
+  }
 }

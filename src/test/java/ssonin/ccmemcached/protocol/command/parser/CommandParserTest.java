@@ -5,6 +5,7 @@ import ssonin.ccmemcached.protocol.command.AddCommand;
 import ssonin.ccmemcached.protocol.command.DeleteCommand;
 import ssonin.ccmemcached.protocol.command.GetCommand;
 import ssonin.ccmemcached.protocol.command.ReplaceCommand;
+import ssonin.ccmemcached.protocol.command.TouchCommand;
 import ssonin.ccmemcached.protocol.error.ApplicationError;
 import ssonin.ccmemcached.protocol.error.CommandNameError;
 
@@ -19,6 +20,7 @@ import static ssonin.ccmemcached.protocol.command.CommandName.DELETE;
 import static ssonin.ccmemcached.protocol.command.CommandName.GET;
 import static ssonin.ccmemcached.protocol.command.CommandName.REPLACE;
 import static ssonin.ccmemcached.protocol.command.CommandName.SET;
+import static ssonin.ccmemcached.protocol.command.CommandName.TOUCH;
 import static ssonin.ccmemcached.protocol.command.ReplaceCommand.Builder.replaceCommand;
 import static ssonin.ccmemcached.protocol.command.SetCommand.Builder.setCommand;
 import static ssonin.ccmemcached.protocol.command.parser.CommandParser.parseCommand;
@@ -140,5 +142,15 @@ class CommandParserTest {
     // then
     assertThat(command).isEqualTo(new DeleteCommand("mykey", true));
     assertThat(command.name()).isEqualTo(DELETE);
+  }
+
+  @Test
+  void dispatches_to_touch_command_parser() {
+    // when
+    var command = parseCommand(buffer("touch mykey 60 noreply"));
+
+    // then
+    assertThat(command).isEqualTo(new TouchCommand("mykey", 60, true));
+    assertThat(command.name()).isEqualTo(TOUCH);
   }
 }

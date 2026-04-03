@@ -9,6 +9,7 @@ import org.mockito.InOrder;
 import org.mockito.Mockito;
 import ssonin.ccmemcached.cache.CacheEntry;
 import ssonin.ccmemcached.cache.CacheService;
+import ssonin.ccmemcached.protocol.command.TouchCommand;
 
 import java.time.Duration;
 import java.util.ArrayList;
@@ -24,6 +25,7 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
 import static org.mockito.BDDMockito.willAnswer;
 import static org.mockito.Mockito.inOrder;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static ssonin.ccmemcached.protocol.command.AddCommand.Builder.addCommand;
 import static ssonin.ccmemcached.protocol.command.ReplaceCommand.Builder.replaceCommand;
@@ -443,6 +445,49 @@ class ProtocolHandlerTest {
 
     // then
     then(cacheService).should().delete("quiet");
+    then(socket).shouldHaveNoMoreInteractions();
+  }
+
+  @Test
+  void touches_existing_key_and_writes_touched_response() {
+    // given
+    var command = new TouchCommand("mykey", 60, false);
+    given(cacheService.touch(command)).willReturn(true);
+
+    // when
+    parserHandler.handle(buffer("touch mykey 60"));
+
+    // then
+    then(cacheService).should().touch(command);
+    then(socket).should().write("TOUCHED\r\n");
+    then(parser).should(never()).fixedSizeMode(org.mockito.ArgumentMatchers.anyInt());
+  }
+
+  @Test
+  void writes_not_found_when_touch_target_is_missing() {
+    // given
+    var command = new TouchCommand("missing", 60, false);
+    given(cacheService.touch(command)).willReturn(false);
+
+    // when
+    parserHandler.handle(buffer("touch missing 60"));
+
+    // then
+    then(cacheService).should().touch(command);
+    then(socket).should().write("NOT_FOUND\r\n");
+  }
+
+  @Test
+  void touches_without_writing_response_when_touch_uses_noreply() {
+    // given
+    var command = new TouchCommand("quiet", 60, true);
+    given(cacheService.touch(command)).willReturn(true);
+
+    // when
+    parserHandler.handle(buffer("touch quiet 60 noreply"));
+
+    // then
+    then(cacheService).should().touch(command);
     then(socket).shouldHaveNoMoreInteractions();
   }
 

@@ -6,13 +6,12 @@ import io.vertx.core.Future;
 import io.vertx.core.VerticleBase;
 import io.vertx.core.json.JsonObject;
 import org.slf4j.Logger;
-import ssonin.ccmemcached.cache.CacheEntry;
+import ssonin.ccmemcached.cache.CacheEntryExpiry;
 import ssonin.ccmemcached.cache.CacheService;
 import ssonin.ccmemcached.server.ServerVerticle;
 
 import java.util.function.Supplier;
 
-import static com.github.benmanes.caffeine.cache.Expiry.creating;
 import static java.time.InstantSource.system;
 import static java.util.Objects.requireNonNull;
 import static org.slf4j.LoggerFactory.getLogger;
@@ -48,7 +47,7 @@ public final class App extends VerticleBase {
     final var clock = system();
     return new CacheService(
       Caffeine.newBuilder()
-        .expireAfter(creating((String k, CacheEntry v) -> v.ttl()))
+        .expireAfter(new CacheEntryExpiry())
         .build(),
       clock
     );

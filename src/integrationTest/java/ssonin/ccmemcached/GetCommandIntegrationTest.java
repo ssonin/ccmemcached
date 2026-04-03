@@ -8,7 +8,7 @@ import io.vertx.core.json.JsonObject;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import ssonin.ccmemcached.cache.CacheEntry;
+import ssonin.ccmemcached.cache.CacheEntryExpiry;
 import ssonin.ccmemcached.cache.CacheService;
 
 import java.io.IOException;
@@ -17,7 +17,6 @@ import java.net.Socket;
 import java.time.Instant;
 import java.util.concurrent.TimeUnit;
 
-import static com.github.benmanes.caffeine.cache.Expiry.creating;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -36,7 +35,7 @@ class GetCommandIntegrationTest {
     ticker = new FakeTicker();
     cacheService = new CacheService(
       Caffeine.newBuilder()
-        .expireAfter(creating((String key, CacheEntry entry) -> entry.ttl()))
+        .expireAfter(new CacheEntryExpiry())
         .executor(Runnable::run)
         .ticker(ticker::read)
         .build(),

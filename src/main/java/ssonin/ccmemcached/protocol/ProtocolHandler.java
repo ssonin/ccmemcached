@@ -11,6 +11,7 @@ import ssonin.ccmemcached.protocol.command.GetCommand;
 import ssonin.ccmemcached.protocol.command.ReplaceCommand;
 import ssonin.ccmemcached.protocol.command.SetCommand;
 import ssonin.ccmemcached.protocol.command.StorageCommand;
+import ssonin.ccmemcached.protocol.command.TouchCommand;
 import ssonin.ccmemcached.protocol.error.ApplicationError;
 import ssonin.ccmemcached.protocol.error.ClientError;
 
@@ -85,6 +86,7 @@ public final class ProtocolHandler {
       case GetCommand getCommand -> startRetrieval(getCommand);
       case ReplaceCommand replaceCommand -> startStorage(replaceCommand);
       case SetCommand setCommand -> startStorage(setCommand);
+      case TouchCommand touchCommand -> handleTouch(touchCommand);
       default -> throw new ClientError("command '%s' is not implemented".formatted(command.name().name().toLowerCase()));
     }
   }
@@ -108,6 +110,14 @@ public final class ProtocolHandler {
       }
     });
     socket.write("END\r\n");
+  }
+
+  private void handleTouch(TouchCommand command) {
+    final var touched = cacheService.touch(command);
+    if (!command.noReply()) {
+      final var response = touched ? "TOUCHED" : "NOT_FOUND";
+      socket.write("%s\r\n".formatted(response));
+    }
   }
 
   private void startStorage(StorageCommand command) {

@@ -5,6 +5,7 @@ import ssonin.ccmemcached.protocol.command.AddCommand;
 import ssonin.ccmemcached.protocol.command.ReplaceCommand;
 import ssonin.ccmemcached.protocol.command.SetCommand;
 import ssonin.ccmemcached.protocol.command.StorageCommand;
+import ssonin.ccmemcached.protocol.command.TouchCommand;
 
 import java.time.Duration;
 import java.time.Instant;
@@ -33,6 +34,11 @@ public final class CacheService {
 
   public boolean delete(String key) {
     return delegate.asMap().remove(key) != null;
+  }
+
+  public boolean touch(TouchCommand command) {
+    return delegate.asMap().computeIfPresent(command.key(), (key, existing) ->
+      new CacheEntry(existing.flags(), evaluateTtl(command.expTime()), existing.data())) != null;
   }
 
   public void cleanUp() {

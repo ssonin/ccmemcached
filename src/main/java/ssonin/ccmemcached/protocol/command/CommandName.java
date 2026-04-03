@@ -5,5 +5,6 @@ public enum CommandName {
   DELETE,
   GET,
   REPLACE,
-  SET
+  SET,
+  TOUCH
 }
