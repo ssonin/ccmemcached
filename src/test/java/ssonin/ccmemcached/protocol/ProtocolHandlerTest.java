@@ -7,8 +7,9 @@ import io.vertx.core.parsetools.RecordParser;
 import org.junit.jupiter.api.Test;
 import org.mockito.InOrder;
 import org.mockito.Mockito;
-import ssonin.ccmemcached.cache.CacheEntry;
 import ssonin.ccmemcached.cache.CacheService;
+import ssonin.ccmemcached.protocol.command.DecrCommand;
+import ssonin.ccmemcached.protocol.command.IncrCommand;
 import ssonin.ccmemcached.protocol.command.TouchCommand;
 
 import java.time.Duration;
@@ -16,9 +17,11 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.OptionalLong;
 
 import static io.vertx.core.buffer.Buffer.buffer;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
@@ -27,6 +30,7 @@ import static org.mockito.BDDMockito.willAnswer;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
+import static ssonin.ccmemcached.cache.CacheEntry.cacheEntry;
 import static ssonin.ccmemcached.protocol.command.AddCommand.Builder.addCommand;
 import static ssonin.ccmemcached.protocol.command.ReplaceCommand.Builder.replaceCommand;
 import static ssonin.ccmemcached.protocol.command.SetCommand.Builder.setCommand;
@@ -388,8 +392,16 @@ class ProtocolHandlerTest {
     // given
     var keys = List.of("second", "missing", "first");
     var entries = Map.of(
-      "first", new CacheEntry(1, Duration.ofSeconds(60), "one".getBytes()),
-      "second", new CacheEntry(2, Duration.ofSeconds(60), "two".getBytes())
+      "first", cacheEntry()
+        .flags(1)
+        .ttl(Duration.ofSeconds(60))
+        .data("one".getBytes())
+        .build(),
+      "second", cacheEntry()
+        .flags(2)
+        .ttl(Duration.ofSeconds(60))
+        .data("two".getBytes())
+        .build()
     );
     given(cacheService.getAllPresent(keys)).willReturn(entries);
 
@@ -460,7 +472,7 @@ class ProtocolHandlerTest {
     // then
     then(cacheService).should().touch(command);
     then(socket).should().write("TOUCHED\r\n");
-    then(parser).should(never()).fixedSizeMode(org.mockito.ArgumentMatchers.anyInt());
+    then(parser).should(never()).fixedSizeMode(anyInt());
   }
 
   @Test
@@ -489,6 +501,123 @@ class ProtocolHandlerTest {
     // then
     then(cacheService).should().touch(command);
     then(socket).shouldHaveNoMoreInteractions();
+  }
+
+  @Test
+  void increments_existing_key_and_writes_updated_value() {
+    // given
+    var command = new IncrCommand("mykey", 2L, false);
+    given(cacheService.increment(command)).willReturn(OptionalLong.of(42L));
+
+    // when
+    parserHandler.handle(buffer("incr mykey 2"));
+
+    // then
+    then(cacheService).should().increment(command);
+    then(socket).should().write("42\r\n");
+    then(parser).should(never()).fixedSizeMode(anyInt());
+  }
+
+  @Test
+  void writes_unsigned_updated_value_when_result_exceeds_signed_long_range() {
+    // given
+    var command = new IncrCommand("mykey", 1L, false);
+    given(cacheService.increment(command)).willReturn(OptionalLong.of(-2L));
+
+    // when
+    parserHandler.handle(buffer("incr mykey 1"));
+
+    // then
+    then(cacheService).should().increment(command);
+    then(socket).should().write("18446744073709551614\r\n");
+  }
+
+  @Test
+  void writes_not_found_when_incr_target_is_missing() {
+    // given
+    var command = new IncrCommand("missing", 2L, false);
+    given(cacheService.increment(command)).willReturn(OptionalLong.empty());
+
+    // when
+    parserHandler.handle(buffer("incr missing 2"));
+
+    // then
+    then(cacheService).should().increment(command);
+    then(socket).should().write("NOT_FOUND\r\n");
+  }
+
+  @Test
+  void increments_without_writing_response_when_incr_uses_noreply() {
+    // given
+    var command = new IncrCommand("quiet", 2L, true);
+    given(cacheService.increment(command)).willReturn(OptionalLong.of(42L));
+
+    // when
+    parserHandler.handle(buffer("incr quiet 2 noreply"));
+
+    // then
+    then(cacheService).should().increment(command);
+    then(socket).shouldHaveNoMoreInteractions();
+  }
+
+  @Test
+  void decrements_existing_key_and_writes_updated_value() {
+    // given
+    var command = new DecrCommand("mykey", 2L, false);
+    given(cacheService.decrement(command)).willReturn(OptionalLong.of(40L));
+
+    // when
+    parserHandler.handle(buffer("decr mykey 2"));
+
+    // then
+    then(cacheService).should().decrement(command);
+    then(socket).should().write("40\r\n");
+    then(parser).should(never()).fixedSizeMode(anyInt());
+  }
+
+  @Test
+  void writes_not_found_when_decr_target_is_missing() {
+    // given
+    var command = new DecrCommand("missing", 2L, false);
+    given(cacheService.decrement(command)).willReturn(OptionalLong.empty());
+
+    // when
+    parserHandler.handle(buffer("decr missing 2"));
+
+    // then
+    then(cacheService).should().decrement(command);
+    then(socket).should().write("NOT_FOUND\r\n");
+  }
+
+  @Test
+  void decrements_without_writing_response_when_decr_uses_noreply() {
+    // given
+    var command = new DecrCommand("quiet", 2L, true);
+    given(cacheService.decrement(command)).willReturn(OptionalLong.of(40L));
+
+    // when
+    parserHandler.handle(buffer("decr quiet 2 noreply"));
+
+    // then
+    then(cacheService).should().decrement(command);
+    then(socket).shouldHaveNoMoreInteractions();
+  }
+
+  @Test
+  void writes_error_and_recovers_after_invalid_incr_target_value() {
+    // given
+    var failed = new IncrCommand("counter", 1L, false);
+    given(cacheService.increment(failed)).willThrow(new ssonin.ccmemcached.protocol.error.ClientError("value is not a valid unsigned integer"));
+    given(cacheService.delete("mykey")).willReturn(true);
+
+    // when
+    parserHandler.handle(buffer("incr counter 1"));
+    parserHandler.handle(buffer("delete mykey"));
+
+    // then
+    then(socket).should().write("CLIENT_ERROR: value is not a valid unsigned integer\r\n");
+    then(cacheService).should().delete("mykey");
+    then(socket).should().write("DELETED\r\n");
   }
 
   private RecordParser parser() {

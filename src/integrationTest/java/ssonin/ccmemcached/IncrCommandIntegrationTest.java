@@ -22,7 +22,7 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-class ReplaceCommandIntegrationTest {
+class IncrCommandIntegrationTest {
 
   private Vertx vertx;
   private CacheService cacheService;
@@ -56,75 +56,44 @@ class ReplaceCommandIntegrationTest {
   }
 
   @Test
-  void replace_updates_existing_value_retrievable_via_get() throws Exception {
+  void incr_increments_existing_numeric_value_and_value_is_retrievable_via_get() throws Exception {
     try (var client = connect()) {
       // given
-      sendSet(client, "mykey", 1, 60, "first");
+      sendSet(client, "counter", 7, 60, "41");
 
       // when
-      writeAscii(client, "replace mykey 7 60 6\r\nsecond\r\n");
-      assertThat(readLine(client)).isEqualTo("STORED\r\n");
+      writeAscii(client, "incr counter 1\r\n");
 
       // then
-      writeAscii(client, "get mykey\r\n");
-      assertThat(readUntilEnd(client)).isEqualTo(normalizeCrlf("""
-        VALUE mykey 7 6
-        second
-        END
-        """));
+      assertThat(readLine(client)).isEqualTo("42\r\n");
+
+      // when
+      writeAscii(client, "get counter\r\n");
+
+      // then
+      assertThat(readUntilEnd(client)).isEqualTo("VALUE counter 7 2\r\n42\r\nEND\r\n");
     }
   }
 
   @Test
-  void replace_resets_existing_ttl() throws Exception {
+  void incr_returns_not_found_for_missing_key() throws Exception {
     try (var client = connect()) {
-      // given
-      sendSet(client, "mykey", 1, 1, "first");
-      ticker.advance(800, TimeUnit.MILLISECONDS);
-
       // when
-      writeAscii(client, "replace mykey 2 60 6\r\nsecond\r\n");
-      assertThat(readLine(client)).isEqualTo("STORED\r\n");
-      ticker.advance(300, TimeUnit.MILLISECONDS);
-      cacheService.cleanUp();
-      writeAscii(client, "get mykey\r\n");
+      writeAscii(client, "incr missing 1\r\n");
 
       // then
-      assertThat(readUntilEnd(client)).isEqualTo(normalizeCrlf("""
-        VALUE mykey 2 6
-        second
-        END
-        """));
+      assertThat(readLine(client)).isEqualTo("NOT_FOUND\r\n");
     }
   }
 
   @Test
-  void replace_returns_not_stored_when_key_is_missing() throws Exception {
-    try (var client = connect()) {
-      // when
-      writeAscii(client, "replace mykey 2 60 6\r\nsecond\r\n");
-
-      // then
-      assertThat(readLine(client)).isEqualTo("NOT_STORED\r\n");
-
-      // when
-      writeAscii(client, "get mykey\r\n");
-
-      // then
-      assertThat(readUntilEnd(client)).isEqualTo(normalizeCrlf("""
-        END
-        """));
-    }
-  }
-
-  @Test
-  void replace_with_noreply_updates_existing_value_without_immediate_response() throws Exception {
+  void incr_with_noreply_updates_value_without_immediate_response() throws Exception {
     try (var client = connect()) {
       // given
-      sendSet(client, "quiet", 1, 60, "first");
+      sendSet(client, "counter", 7, 60, "41");
 
       // when
-      writeAscii(client, "replace quiet 3 60 5 noreply\r\nvalue\r\n");
+      writeAscii(client, "incr counter 1 noreply\r\n");
 
       // then
       client.setSoTimeout(200);
@@ -133,14 +102,100 @@ class ReplaceCommandIntegrationTest {
 
       // when
       client.setSoTimeout(2000);
-      writeAscii(client, "get quiet\r\n");
+      writeAscii(client, "get counter\r\n");
 
       // then
-      assertThat(readUntilEnd(client)).isEqualTo(normalizeCrlf("""
-        VALUE quiet 3 5
-        value
-        END
-        """));
+      assertThat(readUntilEnd(client)).isEqualTo("VALUE counter 7 2\r\n42\r\nEND\r\n");
+    }
+  }
+
+  @Test
+  void incr_rejects_non_numeric_stored_value_and_keeps_connection_usable() throws Exception {
+    try (var client = connect()) {
+      // given
+      sendSet(client, "counter", 7, 60, "value");
+
+      // when
+      writeAscii(client, "incr counter 1\r\n");
+
+      // then
+      assertThat(readLine(client)).isEqualTo("CLIENT_ERROR: value is not a valid unsigned integer\r\n");
+
+      // when
+      sendSet(client, "next", 9, 60, "hello");
+      writeAscii(client, "get next\r\n");
+
+      // then
+      assertThat(readUntilEnd(client)).isEqualTo("VALUE next 9 5\r\nhello\r\nEND\r\n");
+    }
+  }
+
+  @Test
+  void incr_wraps_unsigned_64_bit_overflow() throws Exception {
+    try (var client = connect()) {
+      // given
+      sendSet(client, "counter", 7, 60, "18446744073709551615");
+
+      // when
+      writeAscii(client, "incr counter 1\r\n");
+
+      // then
+      assertThat(readLine(client)).isEqualTo("0\r\n");
+
+      // when
+      writeAscii(client, "get counter\r\n");
+
+      // then
+      assertThat(readUntilEnd(client)).isEqualTo("VALUE counter 7 1\r\n0\r\nEND\r\n");
+    }
+  }
+
+  @Test
+  void incr_does_not_extend_existing_ttl() throws Exception {
+    try (var client = connect()) {
+      // given
+      sendSet(client, "counter", 7, 1, "1");
+      ticker.advance(800, TimeUnit.MILLISECONDS);
+
+      // when
+      writeAscii(client, "incr counter 1\r\n");
+
+      // then
+      assertThat(readLine(client)).isEqualTo("2\r\n");
+
+      // when
+      ticker.advance(300, TimeUnit.MILLISECONDS);
+      cacheService.cleanUp();
+      writeAscii(client, "get counter\r\n");
+
+      // then
+      assertThat(readUntilEnd(client)).isEqualTo("END\r\n");
+    }
+  }
+
+  @Test
+  void touch_then_incr_does_not_extend_touched_ttl_again() throws Exception {
+    try (var client = connect()) {
+      // given
+      sendSet(client, "counter", 7, 1, "1");
+      writeAscii(client, "touch counter 2\r\n");
+      assertThat(readLine(client)).isEqualTo("TOUCHED\r\n");
+      ticker.advance(1500, TimeUnit.MILLISECONDS);
+      cacheService.cleanUp();
+
+      // when
+      writeAscii(client, "incr counter 1\r\n");
+
+      // then
+      assertThat(readLine(client)).isEqualTo("2\r\n");
+
+      // when
+      ticker.advance(600, TimeUnit.MILLISECONDS);
+      cacheService.cleanUp();
+      writeAscii(client, "get counter\r\n");
+
+      // then
+      assertThat(readUntilEnd(client)).isEqualTo("END\r\n");
     }
   }
 
@@ -189,10 +244,6 @@ class ReplaceCommandIntegrationTest {
       buffer.append((char) next);
     }
     return buffer.toString();
-  }
-
-  private String normalizeCrlf(String response) {
-    return response.replace("\n", "\r\n");
   }
 
   private static <T> T await(io.vertx.core.Future<T> future) {

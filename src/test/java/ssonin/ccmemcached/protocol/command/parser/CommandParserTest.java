@@ -2,8 +2,10 @@ package ssonin.ccmemcached.protocol.command.parser;
 
 import org.junit.jupiter.api.Test;
 import ssonin.ccmemcached.protocol.command.AddCommand;
+import ssonin.ccmemcached.protocol.command.DecrCommand;
 import ssonin.ccmemcached.protocol.command.DeleteCommand;
 import ssonin.ccmemcached.protocol.command.GetCommand;
+import ssonin.ccmemcached.protocol.command.IncrCommand;
 import ssonin.ccmemcached.protocol.command.ReplaceCommand;
 import ssonin.ccmemcached.protocol.command.TouchCommand;
 import ssonin.ccmemcached.protocol.error.ApplicationError;
@@ -16,8 +18,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.catchThrowable;
 import static ssonin.ccmemcached.protocol.command.AddCommand.Builder.addCommand;
 import static ssonin.ccmemcached.protocol.command.CommandName.ADD;
+import static ssonin.ccmemcached.protocol.command.CommandName.DECR;
 import static ssonin.ccmemcached.protocol.command.CommandName.DELETE;
 import static ssonin.ccmemcached.protocol.command.CommandName.GET;
+import static ssonin.ccmemcached.protocol.command.CommandName.INCR;
 import static ssonin.ccmemcached.protocol.command.CommandName.REPLACE;
 import static ssonin.ccmemcached.protocol.command.CommandName.SET;
 import static ssonin.ccmemcached.protocol.command.CommandName.TOUCH;
@@ -152,5 +156,25 @@ class CommandParserTest {
     // then
     assertThat(command).isEqualTo(new TouchCommand("mykey", 60, true));
     assertThat(command.name()).isEqualTo(TOUCH);
+  }
+
+  @Test
+  void dispatches_to_incr_command_parser() {
+    // when
+    var command = parseCommand(buffer("incr mykey 42 noreply"));
+
+    // then
+    assertThat(command).isEqualTo(new IncrCommand("mykey", 42L, true));
+    assertThat(command.name()).isEqualTo(INCR);
+  }
+
+  @Test
+  void dispatches_to_decr_command_parser() {
+    // when
+    var command = parseCommand(buffer("decr mykey 42 noreply"));
+
+    // then
+    assertThat(command).isEqualTo(new DecrCommand("mykey", 42L, true));
+    assertThat(command.name()).isEqualTo(DECR);
   }
 }

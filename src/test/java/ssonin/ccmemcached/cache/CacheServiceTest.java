@@ -3,6 +3,9 @@ package ssonin.ccmemcached.cache;
 import com.github.benmanes.caffeine.cache.Cache;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import ssonin.ccmemcached.protocol.command.DecrCommand;
+import ssonin.ccmemcached.protocol.command.IncrCommand;
+import ssonin.ccmemcached.protocol.command.TouchCommand;
 
 import java.time.InstantSource;
 import java.util.List;
@@ -14,9 +17,13 @@ import static java.time.Duration.ofSeconds;
 import static java.time.Instant.parse;
 import static java.time.InstantSource.fixed;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.catchThrowable;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
 import static org.mockito.Mockito.mock;
+import static ssonin.ccmemcached.cache.CacheEntry.cacheEntry;
+import static ssonin.ccmemcached.cache.ExpiryUpdate.PRESERVE;
+import static ssonin.ccmemcached.cache.ExpiryUpdate.RESET;
 import static ssonin.ccmemcached.protocol.command.AddCommand.Builder.addCommand;
 import static ssonin.ccmemcached.protocol.command.ReplaceCommand.Builder.replaceCommand;
 import static ssonin.ccmemcached.protocol.command.SetCommand.Builder.setCommand;
@@ -47,7 +54,12 @@ class CacheServiceTest {
       tested.put(command, data);
 
       // then
-      then(delegate).should().put("mykey", new CacheEntry(42, ofDays(365L * 100), data));
+      then(delegate).should().put("mykey", cacheEntry()
+        .flags(42)
+        .ttl(ofDays(365L * 100))
+        .data(data)
+        .expiryUpdate(RESET)
+        .build());
     }
 
     @Test
@@ -65,7 +77,12 @@ class CacheServiceTest {
       tested.put(command, data);
 
       // then
-      then(delegate).should().put("mykey", new CacheEntry(7, ofSeconds(900), data));
+      then(delegate).should().put("mykey", cacheEntry()
+        .flags(7)
+        .ttl(ofSeconds(900))
+        .data(data)
+        .expiryUpdate(RESET)
+        .build());
     }
 
     @Test
@@ -84,7 +101,12 @@ class CacheServiceTest {
       tested.put(command, data);
 
       // then
-      then(delegate).should().put("mykey", new CacheEntry(9, ofSeconds(3600), data));
+      then(delegate).should().put("mykey", cacheEntry()
+        .flags(9)
+        .ttl(ofSeconds(3600))
+        .data(data)
+        .expiryUpdate(RESET)
+        .build());
     }
   }
 
@@ -109,14 +131,22 @@ class CacheServiceTest {
 
       // then
       assertThat(stored).isTrue();
-      assertThat(entries).containsEntry("mykey", new CacheEntry(7, ofSeconds(900), data));
-      then(delegate).should().asMap();
+      assertThat(entries).containsEntry("mykey", cacheEntry()
+        .flags(7)
+        .ttl(ofSeconds(900))
+        .data(data)
+        .expiryUpdate(RESET)
+        .build());
     }
 
     @Test
     void returns_false_and_preserves_existing_entry_when_key_exists() {
       // given
-      var existing = new CacheEntry(1, ofSeconds(30), "first".getBytes());
+      var existing = cacheEntry()
+        .flags(1)
+        .ttl(ofSeconds(30))
+        .data("first".getBytes())
+        .build();
       var entries = new ConcurrentHashMap<String, CacheEntry>();
       entries.put("mykey", existing);
       given(delegate.asMap()).willReturn(entries);
@@ -133,7 +163,6 @@ class CacheServiceTest {
       // then
       assertThat(stored).isFalse();
       assertThat(entries).containsEntry("mykey", existing);
-      then(delegate).should().asMap();
     }
   }
 
@@ -144,7 +173,11 @@ class CacheServiceTest {
     void stores_entry_when_key_is_present() {
       // given
       var entries = new ConcurrentHashMap<String, CacheEntry>();
-      entries.put("mykey", new CacheEntry(1, ofSeconds(30), "first".getBytes()));
+      entries.put("mykey", cacheEntry()
+        .flags(1)
+        .ttl(ofSeconds(30))
+        .data("first".getBytes())
+        .build());
       given(delegate.asMap()).willReturn(entries);
       var command = replaceCommand()
         .key("mykey")
@@ -159,8 +192,12 @@ class CacheServiceTest {
 
       // then
       assertThat(stored).isTrue();
-      assertThat(entries).containsEntry("mykey", new CacheEntry(7, ofSeconds(900), data));
-      then(delegate).should().asMap();
+      assertThat(entries).containsEntry("mykey", cacheEntry()
+        .flags(7)
+        .ttl(ofSeconds(900))
+        .data(data)
+        .expiryUpdate(RESET)
+        .build());
     }
 
     @Test
@@ -181,7 +218,6 @@ class CacheServiceTest {
       // then
       assertThat(stored).isFalse();
       assertThat(entries).doesNotContainKey("mykey");
-      then(delegate).should().asMap();
     }
   }
 
@@ -192,7 +228,11 @@ class CacheServiceTest {
     void returns_entries_present_for_requested_keys() {
       // given
       var keys = List.of("first", "second");
-      var entries = Map.of("first", new CacheEntry(7, ofSeconds(30), "value".getBytes()));
+      var entries = Map.of("first", cacheEntry()
+        .flags(7)
+        .ttl(ofSeconds(30))
+        .data("value".getBytes())
+        .build());
       given(delegate.getAllPresent(keys)).willReturn(entries);
 
       // when
@@ -200,7 +240,6 @@ class CacheServiceTest {
 
       // then
       assertThat(result).isEqualTo(entries);
-      then(delegate).should().getAllPresent(keys);
     }
   }
 
@@ -211,7 +250,11 @@ class CacheServiceTest {
     void returns_true_and_removes_entry_when_key_exists() {
       // given
       var entries = new ConcurrentHashMap<String, CacheEntry>();
-      entries.put("mykey", new CacheEntry(7, ofSeconds(30), "value".getBytes()));
+      entries.put("mykey", cacheEntry()
+        .flags(7)
+        .ttl(ofSeconds(30))
+        .data("value".getBytes())
+        .build());
       given(delegate.asMap()).willReturn(entries);
 
       // when
@@ -220,7 +263,6 @@ class CacheServiceTest {
       // then
       assertThat(deleted).isTrue();
       assertThat(entries).doesNotContainKey("mykey");
-      then(delegate).should().asMap();
     }
 
     @Test
@@ -234,7 +276,6 @@ class CacheServiceTest {
 
       // then
       assertThat(deleted).isFalse();
-      then(delegate).should().asMap();
     }
   }
 
@@ -246,17 +287,25 @@ class CacheServiceTest {
       // given
       var existingData = "value".getBytes();
       var entries = new ConcurrentHashMap<String, CacheEntry>();
-      entries.put("mykey", new CacheEntry(7, ofSeconds(30), existingData));
+      entries.put("mykey", cacheEntry()
+        .flags(7)
+        .ttl(ofSeconds(30))
+        .data(existingData)
+        .build());
       given(delegate.asMap()).willReturn(entries);
-      var command = new ssonin.ccmemcached.protocol.command.TouchCommand("mykey", 900, false);
+      var command = new TouchCommand("mykey", 900, false);
 
       // when
       var touched = tested.touch(command);
 
       // then
       assertThat(touched).isTrue();
-      assertThat(entries).containsEntry("mykey", new CacheEntry(7, ofSeconds(900), existingData));
-      then(delegate).should().asMap();
+      assertThat(entries).containsEntry("mykey", cacheEntry()
+        .flags(7)
+        .ttl(ofSeconds(900))
+        .data(existingData)
+        .expiryUpdate(RESET)
+        .build());
     }
 
     @Test
@@ -264,7 +313,7 @@ class CacheServiceTest {
       // given
       var entries = new ConcurrentHashMap<String, CacheEntry>();
       given(delegate.asMap()).willReturn(entries);
-      var command = new ssonin.ccmemcached.protocol.command.TouchCommand("missing", 900, false);
+      var command = new TouchCommand("missing", 900, false);
 
       // when
       var touched = tested.touch(command);
@@ -272,7 +321,174 @@ class CacheServiceTest {
       // then
       assertThat(touched).isFalse();
       assertThat(entries).doesNotContainKey("missing");
-      then(delegate).should().asMap();
+    }
+  }
+
+  @Nested
+  class IncrementTest {
+
+    @Test
+    void increments_numeric_value_and_preserves_flags_and_ttl() {
+      // given
+      var entries = new ConcurrentHashMap<String, CacheEntry>();
+      entries.put("mykey", cacheEntry()
+        .flags(7)
+        .ttl(ofSeconds(30))
+        .data("41".getBytes())
+        .build());
+      given(delegate.asMap()).willReturn(entries);
+
+      // when
+      var result = tested.increment(new IncrCommand("mykey", 1L, false));
+      var updated = entries.get("mykey");
+
+      // then
+      assertThat(result).hasValue(42L);
+      assertThat(updated.flags()).isEqualTo(7);
+      assertThat(updated.ttl()).isEqualTo(ofSeconds(30));
+      assertThat(updated.data()).isEqualTo("42".getBytes());
+      assertThat(updated.expiryUpdate()).isEqualTo(PRESERVE);
+    }
+
+    @Test
+    void wraps_unsigned_overflow_to_zero() {
+      // given
+      var entries = new ConcurrentHashMap<String, CacheEntry>();
+      entries.put("mykey", cacheEntry()
+        .flags(7)
+        .ttl(ofSeconds(30))
+        .data("18446744073709551615".getBytes())
+        .build());
+      given(delegate.asMap()).willReturn(entries);
+
+      // when
+      var result = tested.increment(new IncrCommand("mykey", 1L, false));
+      var updated = entries.get("mykey");
+
+      // then
+      assertThat(result).hasValue(0L);
+      assertThat(updated.flags()).isEqualTo(7);
+      assertThat(updated.ttl()).isEqualTo(ofSeconds(30));
+      assertThat(updated.data()).isEqualTo("0".getBytes());
+      assertThat(updated.expiryUpdate()).isEqualTo(PRESERVE);
+    }
+
+    @Test
+    void returns_empty_when_key_is_missing() {
+      // given
+      var entries = new ConcurrentHashMap<String, CacheEntry>();
+      given(delegate.asMap()).willReturn(entries);
+
+      // when
+      var result = tested.increment(new IncrCommand("missing", 1L, false));
+
+      // then
+      assertThat(result).isEmpty();
+    }
+
+    @Test
+    void throws_when_stored_value_is_not_numeric() {
+      // given
+      var entries = new ConcurrentHashMap<String, CacheEntry>();
+      entries.put("mykey", cacheEntry()
+        .flags(7)
+        .ttl(ofSeconds(30))
+        .data("value".getBytes())
+        .build());
+      given(delegate.asMap()).willReturn(entries);
+
+      // when
+      var thrown = catchThrowable(() -> tested.increment(new IncrCommand("mykey", 1L, false)));
+
+      // then
+      assertThat(thrown).hasMessage("CLIENT_ERROR: value is not a valid unsigned integer");
+    }
+  }
+
+  @Nested
+  class DecrementTest {
+
+    @Test
+    void decrements_numeric_value_and_preserves_flags_and_ttl() {
+      // given
+      var entries = new ConcurrentHashMap<String, CacheEntry>();
+      entries.put("mykey", cacheEntry()
+        .flags(7)
+        .ttl(ofSeconds(30))
+        .data("42".getBytes())
+        .build());
+      given(delegate.asMap()).willReturn(entries);
+
+      // when
+      var result = tested.decrement(new DecrCommand("mykey", 1L, false));
+      var updated = entries.get("mykey");
+
+      // then
+      assertThat(result).hasValue(41L);
+      assertThat(updated.flags()).isEqualTo(7);
+      assertThat(updated.ttl()).isEqualTo(ofSeconds(30));
+      assertThat(updated.data()).isEqualTo("41".getBytes());
+      assertThat(updated.expiryUpdate()).isEqualTo(PRESERVE);
+    }
+
+    @Test
+    void decrements_unsigned_value_above_signed_long_range() {
+      // given
+      var entries = new ConcurrentHashMap<String, CacheEntry>();
+      entries.put("mykey", cacheEntry()
+        .flags(7)
+        .ttl(ofSeconds(30))
+        .data("18446744073709551615".getBytes())
+        .build());
+      given(delegate.asMap()).willReturn(entries);
+
+      // when
+      var result = tested.decrement(new DecrCommand("mykey", 1L, false));
+      var updated = entries.get("mykey");
+
+      // then
+      assertThat(result).isPresent();
+      assertThat(Long.toUnsignedString(result.getAsLong())).isEqualTo("18446744073709551614");
+      assertThat(updated.flags()).isEqualTo(7);
+      assertThat(updated.ttl()).isEqualTo(ofSeconds(30));
+      assertThat(updated.data()).isEqualTo("18446744073709551614".getBytes());
+      assertThat(updated.expiryUpdate()).isEqualTo(PRESERVE);
+    }
+
+    @Test
+    void clamps_decrement_result_to_zero() {
+      // given
+      var entries = new ConcurrentHashMap<String, CacheEntry>();
+      entries.put("mykey", cacheEntry()
+        .flags(7)
+        .ttl(ofSeconds(30))
+        .data("2".getBytes())
+        .build());
+      given(delegate.asMap()).willReturn(entries);
+
+      // when
+      var result = tested.decrement(new DecrCommand("mykey", 5L, false));
+      var updated = entries.get("mykey");
+
+      // then
+      assertThat(result).hasValue(0L);
+      assertThat(updated.flags()).isEqualTo(7);
+      assertThat(updated.ttl()).isEqualTo(ofSeconds(30));
+      assertThat(updated.data()).isEqualTo("0".getBytes());
+      assertThat(updated.expiryUpdate()).isEqualTo(PRESERVE);
+    }
+
+    @Test
+    void returns_empty_when_key_is_missing() {
+      // given
+      var entries = new ConcurrentHashMap<String, CacheEntry>();
+      given(delegate.asMap()).willReturn(entries);
+
+      // when
+      var result = tested.decrement(new DecrCommand("missing", 1L, false));
+
+      // then
+      assertThat(result).isEmpty();
     }
   }
 }

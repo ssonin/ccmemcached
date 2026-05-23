@@ -38,7 +38,7 @@ public final class App extends VerticleBase {
         new DeploymentOptions().setConfig(new JsonObject().put("http.port", port)))
       .onSuccess(id -> {
         LOG.info("Config: {}", config());
-        LOG.info("{}}, id: {}", ServerVerticle.class.getName(), id);
+        LOG.info("{}, id: {}", ServerVerticle.class.getName(), id);
       })
       .onFailure(Throwable::printStackTrace);
   }

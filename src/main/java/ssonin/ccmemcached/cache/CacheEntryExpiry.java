@@ -11,7 +11,9 @@ public final class CacheEntryExpiry implements Expiry<String, CacheEntry> {
 
   @Override
   public long expireAfterUpdate(String key, CacheEntry value, long currentTime, long currentDuration) {
-    return value.ttl().toNanos();
+    return value.resetExpiryOnUpdate()
+      ? value.ttl().toNanos()
+      : currentDuration;
   }
 
   @Override

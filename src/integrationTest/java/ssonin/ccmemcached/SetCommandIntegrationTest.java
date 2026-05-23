@@ -1,51 +1,58 @@
 package ssonin.ccmemcached;
 
+import com.github.benmanes.caffeine.cache.Caffeine;
+import com.google.common.testing.FakeTicker;
 import io.vertx.core.DeploymentOptions;
 import io.vertx.core.Vertx;
 import io.vertx.core.json.JsonObject;
-import io.vertx.junit5.VertxExtension;
-import io.vertx.junit5.VertxTestContext;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
+import ssonin.ccmemcached.cache.CacheEntryExpiry;
+import ssonin.ccmemcached.cache.CacheService;
 
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketTimeoutException;
+import java.time.Instant;
+import java.util.concurrent.TimeUnit;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-@ExtendWith(VertxExtension.class)
 class SetCommandIntegrationTest {
 
-  private String deploymentId;
+  private Vertx vertx;
+  private CacheService cacheService;
+  private FakeTicker ticker;
   private int port;
 
   @BeforeEach
-  void deploy_app(Vertx vertx, VertxTestContext testContext) throws IOException {
-    var testPort = nextFreePort();
-    vertx.deployVerticle(
-        new App(),
-        new DeploymentOptions().setConfig(new JsonObject().put("http.port", testPort)))
-      .onComplete(testContext.succeeding(id -> testContext.verify(() -> {
-        deploymentId = id;
-        port = testPort;
-        testContext.completeNow();
-      })));
+  void setUp() throws Exception {
+    vertx = Vertx.vertx();
+    ticker = new FakeTicker();
+    cacheService = new CacheService(
+      Caffeine.newBuilder()
+        .expireAfter(new CacheEntryExpiry())
+        .executor(Runnable::run)
+        .ticker(ticker::read)
+        .build(),
+      () -> Instant.ofEpochMilli(ticker.read() / 1_000_000L)
+    );
+    port = nextFreePort();
+    await(vertx.deployVerticle(
+      new App(() -> cacheService),
+      new DeploymentOptions().setConfig(new JsonObject().put("http.port", port))
+    ));
   }
 
   @AfterEach
-  void undeploy_app(Vertx vertx, VertxTestContext testContext) {
-    if (deploymentId == null) {
-      testContext.completeNow();
-      return;
+  void tearDown() {
+    if (vertx != null) {
+      await(vertx.close());
     }
-
-    vertx.undeploy(deploymentId).onComplete(testContext.succeeding(v -> testContext.completeNow()));
   }
 
   @Test
@@ -72,6 +79,28 @@ class SetCommandIntegrationTest {
 
       // when
       sendSet(client, "mykey", 2, 60, "second");
+      writeAscii(client, "get mykey\r\n");
+
+      // then
+      assertThat(readUntilEnd(client)).isEqualTo(normalizeCrlf("""
+        VALUE mykey 2 6
+        second
+        END
+        """));
+    }
+  }
+
+  @Test
+  void set_overwrite_resets_existing_ttl() throws Exception {
+    try (var client = connect()) {
+      // given
+      sendSet(client, "mykey", 1, 1, "first");
+      ticker.advance(800, TimeUnit.MILLISECONDS);
+
+      // when
+      sendSet(client, "mykey", 2, 60, "second");
+      ticker.advance(300, TimeUnit.MILLISECONDS);
+      cacheService.cleanUp();
       writeAscii(client, "get mykey\r\n");
 
       // then
@@ -178,5 +207,9 @@ class SetCommandIntegrationTest {
 
   private String normalizeCrlf(String response) {
     return response.replace("\n", "\r\n");
+  }
+
+  private static <T> T await(io.vertx.core.Future<T> future) {
+    return future.toCompletionStage().toCompletableFuture().join();
   }
 }

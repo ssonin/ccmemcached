@@ -1,7 +1,7 @@
 package ssonin.ccmemcached.protocol.command;
 
 public sealed interface Command
-  permits DeleteCommand, GetCommand, StorageCommand, TouchCommand {
+  permits DeleteCommand, GetCommand, NumericCommand, StorageCommand, TouchCommand {
 
   CommandName name();
 

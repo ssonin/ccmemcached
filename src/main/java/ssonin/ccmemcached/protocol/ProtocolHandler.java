@@ -6,8 +6,10 @@ import io.vertx.core.parsetools.RecordParser;
 import ssonin.ccmemcached.cache.CacheService;
 import ssonin.ccmemcached.protocol.command.AddCommand;
 import ssonin.ccmemcached.protocol.command.Command;
+import ssonin.ccmemcached.protocol.command.DecrCommand;
 import ssonin.ccmemcached.protocol.command.DeleteCommand;
 import ssonin.ccmemcached.protocol.command.GetCommand;
+import ssonin.ccmemcached.protocol.command.IncrCommand;
 import ssonin.ccmemcached.protocol.command.ReplaceCommand;
 import ssonin.ccmemcached.protocol.command.SetCommand;
 import ssonin.ccmemcached.protocol.command.StorageCommand;
@@ -82,8 +84,10 @@ public final class ProtocolHandler {
   private void dispatch(Command command) {
     switch (command) {
       case AddCommand addCommand -> startStorage(addCommand);
+      case DecrCommand decrCommand -> handleDecr(decrCommand);
       case DeleteCommand deleteCommand -> handleDelete(deleteCommand);
       case GetCommand getCommand -> startRetrieval(getCommand);
+      case IncrCommand incrCommand -> handleIncr(incrCommand);
       case ReplaceCommand replaceCommand -> startStorage(replaceCommand);
       case SetCommand setCommand -> startStorage(setCommand);
       case TouchCommand touchCommand -> handleTouch(touchCommand);
@@ -96,6 +100,20 @@ public final class ProtocolHandler {
     if (!command.noReply()) {
       final var response = deleted ? "DELETED" : "NOT_FOUND";
       socket.write("%s\r\n".formatted(response));
+    }
+  }
+
+  private void handleIncr(IncrCommand command) {
+    final var updatedValue = cacheService.increment(command);
+    if (!command.noReply()) {
+      socket.write("%s\r\n".formatted(updatedValue.isPresent() ? Long.toUnsignedString(updatedValue.getAsLong()) : "NOT_FOUND"));
+    }
+  }
+
+  private void handleDecr(DecrCommand command) {
+    final var updatedValue = cacheService.decrement(command);
+    if (!command.noReply()) {
+      socket.write("%s\r\n".formatted(updatedValue.isPresent() ? Long.toUnsignedString(updatedValue.getAsLong()) : "NOT_FOUND"));
     }
   }
 

@@ -2,18 +2,29 @@ package ssonin.ccmemcached.cache;
 
 import com.github.benmanes.caffeine.cache.Cache;
 import ssonin.ccmemcached.protocol.command.AddCommand;
+import ssonin.ccmemcached.protocol.command.DecrCommand;
+import ssonin.ccmemcached.protocol.command.IncrCommand;
+import ssonin.ccmemcached.protocol.command.NumericCommand;
 import ssonin.ccmemcached.protocol.command.ReplaceCommand;
 import ssonin.ccmemcached.protocol.command.SetCommand;
 import ssonin.ccmemcached.protocol.command.StorageCommand;
 import ssonin.ccmemcached.protocol.command.TouchCommand;
+import ssonin.ccmemcached.protocol.error.ClientError;
 
 import java.time.Duration;
 import java.time.Instant;
 import java.time.InstantSource;
 import java.util.List;
 import java.util.Map;
+import java.util.OptionalLong;
+import java.util.concurrent.atomic.AtomicLong;
 
+import static java.lang.Long.compareUnsigned;
+import static java.lang.Long.parseUnsignedLong;
+import static java.nio.charset.StandardCharsets.US_ASCII;
 import static ssonin.ccmemcached.cache.CacheEntry.cacheEntry;
+import static ssonin.ccmemcached.cache.ExpiryUpdate.PRESERVE;
+import static ssonin.ccmemcached.cache.ExpiryUpdate.RESET;
 
 public final class CacheService {
 
@@ -38,7 +49,20 @@ public final class CacheService {
 
   public boolean touch(TouchCommand command) {
     return delegate.asMap().computeIfPresent(command.key(), (key, existing) ->
-      new CacheEntry(existing.flags(), evaluateTtl(command.expTime()), existing.data())) != null;
+      cacheEntry()
+        .flags(existing.flags())
+        .ttl(evaluateTtl(command.expTime()))
+        .data(existing.data())
+        .expiryUpdate(RESET)
+        .build()) != null;
+  }
+
+  public OptionalLong increment(IncrCommand command) {
+    return updateNumericValue(command);
+  }
+
+  public OptionalLong decrement(DecrCommand command) {
+    return updateNumericValue(command);
   }
 
   public void cleanUp() {
@@ -57,6 +81,36 @@ public final class CacheService {
     return delegate.asMap().computeIfPresent(command.key(), (key, existing) -> toCacheEntry(command, data)) != null;
   }
 
+  private OptionalLong updateNumericValue(NumericCommand command) {
+    final var updatedValue = new AtomicLong();
+    final var updated = delegate.asMap().computeIfPresent(command.key(), (ignored, existing) -> {
+      final var current = parseNumericValue(existing.data());
+      final var next = switch (command) {
+        case IncrCommand __ -> current + command.delta();
+        case DecrCommand __ -> compareUnsigned(current, command.delta()) <= 0L
+          ? 0L
+          : current - command.delta();
+      };
+      updatedValue.set(next);
+      return cacheEntry()
+        .flags(existing.flags())
+        .ttl(existing.ttl())
+        .data(Long.toUnsignedString(next).getBytes(US_ASCII))
+        .expiryUpdate(PRESERVE)
+        .build();
+    }) != null;
+    return updated ? OptionalLong.of(updatedValue.get()) : OptionalLong.empty();
+  }
+
+  private long parseNumericValue(byte[] data) {
+    final var raw = new String(data, US_ASCII);
+    try {
+      return parseUnsignedLong(raw);
+    } catch (NumberFormatException e) {
+      throw new ClientError("value is not a valid unsigned integer");
+    }
+  }
+
   private Duration evaluateTtl(long expTime) {
     if (expTime <= 0) {
       return NEVER_EXPIRES;
@@ -73,6 +127,7 @@ public final class CacheService {
       .flags(command.flags())
       .ttl(evaluateTtl(command.expTime()))
       .data(data)
+      .expiryUpdate(RESET)
       .build();
   }
 }

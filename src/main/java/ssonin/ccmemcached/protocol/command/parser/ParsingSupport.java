@@ -3,6 +3,7 @@ package ssonin.ccmemcached.protocol.command.parser;
 import org.slf4j.Logger;
 import ssonin.ccmemcached.protocol.error.ClientError;
 
+import static java.lang.Long.parseUnsignedLong;
 import static org.slf4j.LoggerFactory.getLogger;
 
 final class ParsingSupport {
@@ -77,6 +78,15 @@ final class ParsingSupport {
     } catch (NumberFormatException e) {
       logger.debug("Invalid bytes value: {}", value, e);
       throw new ClientError("bytes must be a valid integer, got '%s'".formatted(value));
+    }
+  }
+
+  static long parseDelta(String value) {
+    try {
+      return parseUnsignedLong(value);
+    } catch (NumberFormatException e) {
+      logger.debug("Invalid delta value: {}", value, e);
+      throw new ClientError("delta must be a valid 64-bit integer, got '%s'".formatted(value));
     }
   }
 }

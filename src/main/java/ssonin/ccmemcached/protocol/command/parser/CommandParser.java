@@ -11,8 +11,10 @@ import java.util.function.Function;
 
 import static java.util.Objects.requireNonNull;
 import static ssonin.ccmemcached.protocol.command.CommandName.ADD;
+import static ssonin.ccmemcached.protocol.command.CommandName.DECR;
 import static ssonin.ccmemcached.protocol.command.CommandName.DELETE;
 import static ssonin.ccmemcached.protocol.command.CommandName.GET;
+import static ssonin.ccmemcached.protocol.command.CommandName.INCR;
 import static ssonin.ccmemcached.protocol.command.CommandName.REPLACE;
 import static ssonin.ccmemcached.protocol.command.CommandName.SET;
 import static ssonin.ccmemcached.protocol.command.CommandName.TOUCH;
@@ -21,8 +23,10 @@ public final class CommandParser {
 
   private static final Map<CommandName, Function<String[], Command>> parsers = Map.of(
     ADD, AddCommandParser::parse,
+    DECR, DecrCommandParser::parse,
     DELETE, DeleteCommandParser::parse,
     GET, GetCommandParser::parse,
+    INCR, IncrCommandParser::parse,
     REPLACE, ReplaceCommandParser::parse,
     SET, SetCommandParser::parse,
     TOUCH, TouchCommandParser::parse

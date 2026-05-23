@@ -2,21 +2,30 @@ package ssonin.ccmemcached.cache;
 
 import java.time.Duration;
 
+import static ssonin.ccmemcached.cache.ExpiryUpdate.PRESERVE;
+import static ssonin.ccmemcached.cache.ExpiryUpdate.RESET;
+
 public record CacheEntry(
   int flags,
   Duration ttl,
-  byte[] data
+  byte[] data,
+  ExpiryUpdate expiryUpdate
 ) {
 
-  static Builder cacheEntry() {
+  public boolean resetExpiryOnUpdate() {
+    return expiryUpdate == RESET;
+  }
+
+  public static Builder cacheEntry() {
     return new Builder();
   }
 
-  static class Builder {
+  public static class Builder {
 
     private int flags;
     private Duration ttl;
     private byte[] data;
+    private ExpiryUpdate expiryUpdate = PRESERVE;
 
     private Builder() {}
 
@@ -35,8 +44,13 @@ public record CacheEntry(
       return this;
     }
 
+    public Builder expiryUpdate(ExpiryUpdate expiryUpdate) {
+      this.expiryUpdate = expiryUpdate;
+      return this;
+    }
+
     public CacheEntry build() {
-      return new CacheEntry(flags, ttl, data);
+      return new CacheEntry(flags, ttl, data, expiryUpdate);
     }
   }
 }
