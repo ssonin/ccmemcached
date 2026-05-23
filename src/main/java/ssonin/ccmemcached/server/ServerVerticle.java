@@ -14,6 +14,7 @@ public final class ServerVerticle extends VerticleBase {
   private static final Logger logger = getLogger(ServerVerticle.class);
 
   private final CacheService cacheService;
+  private int actualPort;
 
   public ServerVerticle(CacheService cacheService) {
     this.cacheService = cacheService;
@@ -28,10 +29,18 @@ public final class ServerVerticle extends VerticleBase {
         handle(socket);
       })
       .listen(port)
-      .onSuccess(http -> {
-        logger.info("TCP server started on port {}", port);
+      .onSuccess(server -> {
+        actualPort = server.actualPort();
+        logger.info("TCP server started on port {}", server.actualPort());
       })
       .onFailure(Throwable::printStackTrace);
+  }
+
+  public int actualPort() {
+    if (actualPort == 0) {
+      throw new IllegalStateException("server is not bound yet");
+    }
+    return actualPort;
   }
 
   private void handle(NetSocket socket) {

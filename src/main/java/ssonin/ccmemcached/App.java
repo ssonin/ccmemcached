@@ -21,6 +21,8 @@ public final class App extends VerticleBase {
   private static final Logger LOG = getLogger(App.class);
   private final Supplier<CacheService> cacheServiceSupplier;
 
+  private int actualPort;
+
   public App() {
     this(App::defaultCacheService);
   }
@@ -33,14 +35,23 @@ public final class App extends VerticleBase {
   public Future<?> start() {
     final var port = config().getInteger("http.port", 11211);
     final var cacheService = cacheServiceSupplier.get();
+    final var serverVerticle = new ServerVerticle(cacheService);
     return vertx.deployVerticle(
-        new ServerVerticle(cacheService),
+        serverVerticle,
         new DeploymentOptions().setConfig(new JsonObject().put("http.port", port)))
       .onSuccess(id -> {
+        this.actualPort = serverVerticle.actualPort();
         LOG.info("Config: {}", config());
         LOG.info("{}, id: {}", ServerVerticle.class.getName(), id);
       })
       .onFailure(Throwable::printStackTrace);
+  }
+
+  int actualPort() {
+    if (actualPort == 0) {
+      throw new IllegalStateException("server is not bound yet");
+    }
+    return actualPort;
   }
 
   private static CacheService defaultCacheService() {

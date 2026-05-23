@@ -11,7 +11,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.io.IOException;
-import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketTimeoutException;
 
@@ -26,14 +25,14 @@ class AddCommandIntegrationTest {
   private int port;
 
   @BeforeEach
-  void deploy_app(Vertx vertx, VertxTestContext testContext) throws IOException {
-    var testPort = nextFreePort();
+  void deploy_app(Vertx vertx, VertxTestContext testContext) {
+    var app = new App();
     vertx.deployVerticle(
-        new App(),
-        new DeploymentOptions().setConfig(new JsonObject().put("http.port", testPort)))
+        app,
+        new DeploymentOptions().setConfig(new JsonObject().put("http.port", 0)))
       .onComplete(testContext.succeeding(id -> testContext.verify(() -> {
         deploymentId = id;
-        port = testPort;
+        port = app.actualPort();
         testContext.completeNow();
       })));
   }
@@ -105,12 +104,6 @@ class AddCommandIntegrationTest {
         value
         END
         """));
-    }
-  }
-
-  private static int nextFreePort() throws IOException {
-    try (var socket = new ServerSocket(0)) {
-      return socket.getLocalPort();
     }
   }
 

@@ -12,7 +12,6 @@ import ssonin.ccmemcached.cache.CacheEntryExpiry;
 import ssonin.ccmemcached.cache.CacheService;
 
 import java.io.IOException;
-import java.net.ServerSocket;
 import java.net.Socket;
 import java.time.Instant;
 import java.util.concurrent.TimeUnit;
@@ -41,11 +40,12 @@ class GetCommandIntegrationTest {
         .build(),
       () -> Instant.ofEpochMilli(ticker.read() / 1_000_000L)
     );
-    port = findFreePort();
+    var app = new App(() -> cacheService);
     await(vertx.deployVerticle(
-      new App(() -> cacheService),
-      new DeploymentOptions().setConfig(new JsonObject().put("http.port", port))
+      app,
+      new DeploymentOptions().setConfig(new JsonObject().put("http.port", 0))
     ));
+    port = app.actualPort();
   }
 
   @AfterEach
@@ -267,11 +267,5 @@ class GetCommandIntegrationTest {
 
   private <T> T await(io.vertx.core.Future<T> future) {
     return future.toCompletionStage().toCompletableFuture().join();
-  }
-
-  private int findFreePort() throws IOException {
-    try (var socket = new ServerSocket(0)) {
-      return socket.getLocalPort();
-    }
   }
 }
