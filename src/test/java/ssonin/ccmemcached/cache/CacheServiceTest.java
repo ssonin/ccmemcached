@@ -58,6 +58,7 @@ class CacheServiceTest {
         .flags(42)
         .ttl(ofDays(365L * 100))
         .data(data)
+        .casUnique(1L)
         .expiryUpdate(RESET)
         .build());
     }
@@ -81,6 +82,7 @@ class CacheServiceTest {
         .flags(7)
         .ttl(ofSeconds(900))
         .data(data)
+        .casUnique(1L)
         .expiryUpdate(RESET)
         .build());
     }
@@ -105,6 +107,7 @@ class CacheServiceTest {
         .flags(9)
         .ttl(ofSeconds(3600))
         .data(data)
+        .casUnique(1L)
         .expiryUpdate(RESET)
         .build());
     }
@@ -135,6 +138,7 @@ class CacheServiceTest {
         .flags(7)
         .ttl(ofSeconds(900))
         .data(data)
+        .casUnique(1L)
         .expiryUpdate(RESET)
         .build());
     }
@@ -146,6 +150,7 @@ class CacheServiceTest {
         .flags(1)
         .ttl(ofSeconds(30))
         .data("first".getBytes())
+        .casUnique(41L)
         .build();
       var entries = new ConcurrentHashMap<String, CacheEntry>();
       entries.put("mykey", existing);
@@ -196,6 +201,7 @@ class CacheServiceTest {
         .flags(7)
         .ttl(ofSeconds(900))
         .data(data)
+        .casUnique(1L)
         .expiryUpdate(RESET)
         .build());
     }
@@ -291,6 +297,7 @@ class CacheServiceTest {
         .flags(7)
         .ttl(ofSeconds(30))
         .data(existingData)
+        .casUnique(41L)
         .build());
       given(delegate.asMap()).willReturn(entries);
       var command = new TouchCommand("mykey", 900, false);
@@ -304,6 +311,7 @@ class CacheServiceTest {
         .flags(7)
         .ttl(ofSeconds(900))
         .data(existingData)
+        .casUnique(41L)
         .expiryUpdate(RESET)
         .build());
     }
@@ -347,6 +355,7 @@ class CacheServiceTest {
       assertThat(updated.flags()).isEqualTo(7);
       assertThat(updated.ttl()).isEqualTo(ofSeconds(30));
       assertThat(updated.data()).isEqualTo("42".getBytes());
+      assertThat(updated.casUnique()).isEqualTo(1L);
       assertThat(updated.expiryUpdate()).isEqualTo(PRESERVE);
     }
 
@@ -370,6 +379,7 @@ class CacheServiceTest {
       assertThat(updated.flags()).isEqualTo(7);
       assertThat(updated.ttl()).isEqualTo(ofSeconds(30));
       assertThat(updated.data()).isEqualTo("0".getBytes());
+      assertThat(updated.casUnique()).isEqualTo(1L);
       assertThat(updated.expiryUpdate()).isEqualTo(PRESERVE);
     }
 
@@ -428,6 +438,7 @@ class CacheServiceTest {
       assertThat(updated.flags()).isEqualTo(7);
       assertThat(updated.ttl()).isEqualTo(ofSeconds(30));
       assertThat(updated.data()).isEqualTo("41".getBytes());
+      assertThat(updated.casUnique()).isEqualTo(1L);
       assertThat(updated.expiryUpdate()).isEqualTo(PRESERVE);
     }
 
@@ -452,6 +463,7 @@ class CacheServiceTest {
       assertThat(updated.flags()).isEqualTo(7);
       assertThat(updated.ttl()).isEqualTo(ofSeconds(30));
       assertThat(updated.data()).isEqualTo("18446744073709551614".getBytes());
+      assertThat(updated.casUnique()).isEqualTo(1L);
       assertThat(updated.expiryUpdate()).isEqualTo(PRESERVE);
     }
 
@@ -475,6 +487,7 @@ class CacheServiceTest {
       assertThat(updated.flags()).isEqualTo(7);
       assertThat(updated.ttl()).isEqualTo(ofSeconds(30));
       assertThat(updated.data()).isEqualTo("0".getBytes());
+      assertThat(updated.casUnique()).isEqualTo(1L);
       assertThat(updated.expiryUpdate()).isEqualTo(PRESERVE);
     }
 

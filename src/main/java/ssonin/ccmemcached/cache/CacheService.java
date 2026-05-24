@@ -33,6 +33,7 @@ public final class CacheService {
 
   private final Cache<String, CacheEntry> delegate;
   private final InstantSource clock;
+  private final AtomicLong casSequence = new AtomicLong();
 
   public CacheService(Cache<String, CacheEntry> delegate, InstantSource clock) {
     this.delegate = delegate;
@@ -53,6 +54,7 @@ public final class CacheService {
         .flags(existing.flags())
         .ttl(evaluateTtl(command.expTime()))
         .data(existing.data())
+        .casUnique(existing.casUnique())
         .expiryUpdate(RESET)
         .build()) != null;
   }
@@ -96,10 +98,15 @@ public final class CacheService {
         .flags(existing.flags())
         .ttl(existing.ttl())
         .data(Long.toUnsignedString(next).getBytes(US_ASCII))
+        .casUnique(nextCasUnique())
         .expiryUpdate(PRESERVE)
         .build();
     }) != null;
     return updated ? OptionalLong.of(updatedValue.get()) : OptionalLong.empty();
+  }
+
+  private long nextCasUnique() {
+    return casSequence.incrementAndGet();
   }
 
   private long parseNumericValue(byte[] data) {
@@ -127,6 +134,7 @@ public final class CacheService {
       .flags(command.flags())
       .ttl(evaluateTtl(command.expTime()))
       .data(data)
+      .casUnique(nextCasUnique())
       .expiryUpdate(RESET)
       .build();
   }

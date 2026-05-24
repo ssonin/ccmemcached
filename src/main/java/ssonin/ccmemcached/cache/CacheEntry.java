@@ -9,6 +9,7 @@ public record CacheEntry(
   int flags,
   Duration ttl,
   byte[] data,
+  long casUnique,
   ExpiryUpdate expiryUpdate
 ) {
 
@@ -25,6 +26,7 @@ public record CacheEntry(
     private int flags;
     private Duration ttl;
     private byte[] data;
+    private long casUnique;
     private ExpiryUpdate expiryUpdate = PRESERVE;
 
     private Builder() {}
@@ -44,13 +46,18 @@ public record CacheEntry(
       return this;
     }
 
+    public Builder casUnique(long casUnique) {
+      this.casUnique = casUnique;
+      return this;
+    }
+
     public Builder expiryUpdate(ExpiryUpdate expiryUpdate) {
       this.expiryUpdate = expiryUpdate;
       return this;
     }
 
     public CacheEntry build() {
-      return new CacheEntry(flags, ttl, data, expiryUpdate);
+      return new CacheEntry(flags, ttl, data, casUnique, expiryUpdate);
     }
   }
 }
