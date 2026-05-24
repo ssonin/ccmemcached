@@ -3,7 +3,11 @@ package ssonin.ccmemcached.protocol.command.parser;
 import org.slf4j.Logger;
 import ssonin.ccmemcached.protocol.error.ClientError;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import static java.lang.Long.parseUnsignedLong;
+import static java.util.Collections.unmodifiableList;
 import static org.slf4j.LoggerFactory.getLogger;
 
 final class ParsingSupport {
@@ -31,6 +35,17 @@ final class ParsingSupport {
       }
     }
     return key;
+  }
+
+  static List<String> parseKeys(String[] parts) {
+    if (parts.length < 2) {
+      throw new ClientError("expected at least 2 fields, got %d".formatted(parts.length));
+    }
+    final List<String> keys = new ArrayList<>(parts.length - 1);
+    for (var i = 1; i < parts.length; i++) {
+      keys.add(parseKey(parts[i]));
+    }
+    return unmodifiableList(keys);
   }
 
   static boolean parseNoReply(String[] parts, int noReplyIndex) {

@@ -8,6 +8,7 @@ The current implementation supports these text protocol commands:
 
 - `set`
 - `get`
+- `gets`
 - `delete`
 - `add`
 - `replace`
@@ -69,7 +70,7 @@ The project targets Java 25. Java 25 language features such as unnamed pattern v
 ### Command parsing
 
 - `src/main/java/ssonin/ccmemcached/protocol/command/CommandName.java`
-  - Lists implemented command names: `ADD`, `DECR`, `DELETE`, `GET`, `INCR`, `REPLACE`, `SET`, `TOUCH`.
+  - Lists implemented command names: `ADD`, `DECR`, `DELETE`, `GET`, `GETS`, `INCR`, `REPLACE`, `SET`, `TOUCH`.
 
 - `src/main/java/ssonin/ccmemcached/protocol/command/parser/CommandParser.java`
   - Parses the command line into a command record.
@@ -106,6 +107,7 @@ Command-specific parser classes are utility classes with private constructors an
 - `src/main/java/ssonin/ccmemcached/cache/CacheEntry.java`
   - Record for cached item metadata and bytes.
   - Use the `cacheEntry()` builder rather than calling the record constructor directly.
+  - Stores `casUnique`, an opaque 64-bit token exposed by `gets` and intended for future `cas` support.
   - Includes `ExpiryUpdate` metadata so Caffeine can distinguish updates that reset expiry from updates that preserve the existing expiry duration.
 
 - `src/main/java/ssonin/ccmemcached/cache/CacheEntryExpiry.java`
@@ -151,7 +153,7 @@ Run both suites before calling broad protocol changes complete:
 ## Current Gaps and Likely Next Work
 
 - Implement `append` and `prepend` for storage-command breadth.
-- Implement `gets` and `cas` for version-token and compare-and-set semantics.
+- Implement `cas` for compare-and-set semantics.
 - Decide whether wire error formatting should exactly match Memcached.
 - Validate the trailing CRLF segment after storage payloads more strictly.
 - Consider enforcing max key count for multi-key `get`.

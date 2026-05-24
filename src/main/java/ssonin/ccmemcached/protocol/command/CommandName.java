@@ -5,6 +5,7 @@ public enum CommandName {
   DECR,
   DELETE,
   GET,
+  GETS,
   INCR,
   REPLACE,
   SET,

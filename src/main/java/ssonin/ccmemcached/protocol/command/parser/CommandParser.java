@@ -14,6 +14,7 @@ import static ssonin.ccmemcached.protocol.command.CommandName.ADD;
 import static ssonin.ccmemcached.protocol.command.CommandName.DECR;
 import static ssonin.ccmemcached.protocol.command.CommandName.DELETE;
 import static ssonin.ccmemcached.protocol.command.CommandName.GET;
+import static ssonin.ccmemcached.protocol.command.CommandName.GETS;
 import static ssonin.ccmemcached.protocol.command.CommandName.INCR;
 import static ssonin.ccmemcached.protocol.command.CommandName.REPLACE;
 import static ssonin.ccmemcached.protocol.command.CommandName.SET;
@@ -30,6 +31,7 @@ public final class CommandParser {
     DECR, DecrCommandParser::parse,
     DELETE, DeleteCommandParser::parse,
     GET, GetCommandParser::parse,
+    GETS, GetsCommandParser::parse,
     INCR, IncrCommandParser::parse,
     REPLACE, ReplaceCommandParser::parse,
     SET, SetCommandParser::parse,

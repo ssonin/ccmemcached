@@ -5,7 +5,6 @@ import io.vertx.core.buffer.Buffer;
 import io.vertx.core.net.NetSocket;
 import io.vertx.core.parsetools.RecordParser;
 import org.junit.jupiter.api.Test;
-import org.mockito.InOrder;
 import org.mockito.Mockito;
 import ssonin.ccmemcached.cache.CacheService;
 import ssonin.ccmemcached.protocol.command.DecrCommand;
@@ -396,11 +395,13 @@ class ProtocolHandlerTest {
         .flags(1)
         .ttl(Duration.ofSeconds(60))
         .data("one".getBytes())
+        .casUnique(41L)
         .build(),
       "second", cacheEntry()
         .flags(2)
         .ttl(Duration.ofSeconds(60))
         .data("two".getBytes())
+        .casUnique(42L)
         .build()
     );
     given(cacheService.getAllPresent(keys)).willReturn(entries);
@@ -410,11 +411,47 @@ class ProtocolHandlerTest {
 
     // then
     then(cacheService).should().getAllPresent(keys);
-    InOrder inOrder = inOrder(socket);
+    var inOrder = inOrder(socket);
     inOrder.verify(socket).write("VALUE second 2 3\r\n");
     inOrder.verify(socket).write(buffer("two"));
     inOrder.verify(socket).write("\r\n");
     inOrder.verify(socket).write("VALUE first 1 3\r\n");
+    inOrder.verify(socket).write(buffer("one"));
+    inOrder.verify(socket).write("\r\n");
+    inOrder.verify(socket).write("END\r\n");
+    inOrder.verifyNoMoreInteractions();
+  }
+
+  @Test
+  void writes_values_with_cas_unique_for_present_gets_keys_in_request_order_and_ends_response() {
+    // given
+    var keys = List.of("second", "missing", "first");
+    var entries = Map.of(
+      "first", cacheEntry()
+        .flags(1)
+        .ttl(Duration.ofSeconds(60))
+        .data("one".getBytes())
+        .casUnique(41L)
+        .build(),
+      "second", cacheEntry()
+        .flags(2)
+        .ttl(Duration.ofSeconds(60))
+        .data("two".getBytes())
+        .casUnique(-1L)
+        .build()
+    );
+    given(cacheService.getAllPresent(keys)).willReturn(entries);
+
+    // when
+    parserHandler.handle(buffer("gets second missing first"));
+
+    // then
+    then(cacheService).should().getAllPresent(keys);
+    var inOrder = inOrder(socket);
+    inOrder.verify(socket).write("VALUE second 2 3 18446744073709551615\r\n");
+    inOrder.verify(socket).write(buffer("two"));
+    inOrder.verify(socket).write("\r\n");
+    inOrder.verify(socket).write("VALUE first 1 3 41\r\n");
     inOrder.verify(socket).write(buffer("one"));
     inOrder.verify(socket).write("\r\n");
     inOrder.verify(socket).write("END\r\n");

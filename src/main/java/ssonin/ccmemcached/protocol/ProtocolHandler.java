@@ -3,14 +3,15 @@ package ssonin.ccmemcached.protocol;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.net.NetSocket;
 import io.vertx.core.parsetools.RecordParser;
+import ssonin.ccmemcached.cache.CacheEntry;
 import ssonin.ccmemcached.cache.CacheService;
 import ssonin.ccmemcached.protocol.command.AddCommand;
 import ssonin.ccmemcached.protocol.command.Command;
 import ssonin.ccmemcached.protocol.command.DecrCommand;
 import ssonin.ccmemcached.protocol.command.DeleteCommand;
-import ssonin.ccmemcached.protocol.command.GetCommand;
 import ssonin.ccmemcached.protocol.command.IncrCommand;
 import ssonin.ccmemcached.protocol.command.ReplaceCommand;
+import ssonin.ccmemcached.protocol.command.RetrievalCommand;
 import ssonin.ccmemcached.protocol.command.SetCommand;
 import ssonin.ccmemcached.protocol.command.StorageCommand;
 import ssonin.ccmemcached.protocol.command.TouchCommand;
@@ -87,9 +88,9 @@ public final class ProtocolHandler {
       case AddCommand addCommand -> startStorage(addCommand);
       case DecrCommand decrCommand -> handleDecr(decrCommand);
       case DeleteCommand deleteCommand -> handleDelete(deleteCommand);
-      case GetCommand getCommand -> startRetrieval(getCommand);
       case IncrCommand incrCommand -> handleIncr(incrCommand);
       case ReplaceCommand replaceCommand -> startStorage(replaceCommand);
+      case RetrievalCommand retrievalCommand -> startRetrieval(retrievalCommand);
       case SetCommand setCommand -> startStorage(setCommand);
       case TouchCommand touchCommand -> handleTouch(touchCommand);
       default -> throw new ClientError("command '%s' is not implemented".formatted(command.name().name().toLowerCase()));
@@ -118,17 +119,29 @@ public final class ProtocolHandler {
     }
   }
 
-  private void startRetrieval(GetCommand command) {
+  private void startRetrieval(RetrievalCommand command) {
     final var entries = cacheService.getAllPresent(command.keys());
     command.keys().forEach(key -> {
       final var entry = entries.get(key);
       if (entry != null) {
-        socket.write("VALUE %s %s %s\r\n".formatted(key, entry.flags(), entry.data().length));
+        socket.write(valueLine(key, entry, command.includeCasUnique()));
         socket.write(buffer(entry.data()));
         socket.write("\r\n");
       }
     });
     socket.write("END\r\n");
+  }
+
+  private String valueLine(String key, CacheEntry entry, boolean includeCasUnique) {
+    if (includeCasUnique) {
+      return "VALUE %s %s %s %s\r\n".formatted(
+        key,
+        entry.flags(),
+        entry.data().length,
+        Long.toUnsignedString(entry.casUnique())
+      );
+    }
+    return "VALUE %s %s %s\r\n".formatted(key, entry.flags(), entry.data().length);
   }
 
   private void handleTouch(TouchCommand command) {

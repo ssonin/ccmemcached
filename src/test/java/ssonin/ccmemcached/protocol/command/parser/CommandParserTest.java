@@ -5,6 +5,7 @@ import ssonin.ccmemcached.protocol.command.AddCommand;
 import ssonin.ccmemcached.protocol.command.DecrCommand;
 import ssonin.ccmemcached.protocol.command.DeleteCommand;
 import ssonin.ccmemcached.protocol.command.GetCommand;
+import ssonin.ccmemcached.protocol.command.GetsCommand;
 import ssonin.ccmemcached.protocol.command.IncrCommand;
 import ssonin.ccmemcached.protocol.command.ReplaceCommand;
 import ssonin.ccmemcached.protocol.command.TouchCommand;
@@ -21,6 +22,7 @@ import static ssonin.ccmemcached.protocol.command.CommandName.ADD;
 import static ssonin.ccmemcached.protocol.command.CommandName.DECR;
 import static ssonin.ccmemcached.protocol.command.CommandName.DELETE;
 import static ssonin.ccmemcached.protocol.command.CommandName.GET;
+import static ssonin.ccmemcached.protocol.command.CommandName.GETS;
 import static ssonin.ccmemcached.protocol.command.CommandName.INCR;
 import static ssonin.ccmemcached.protocol.command.CommandName.REPLACE;
 import static ssonin.ccmemcached.protocol.command.CommandName.SET;
@@ -136,6 +138,16 @@ class CommandParserTest {
     // then
     assertThat(command).isEqualTo(new GetCommand(List.of("mykey", "other")));
     assertThat(command.name()).isEqualTo(GET);
+  }
+
+  @Test
+  void dispatches_to_gets_command_parser() {
+    // when
+    var command = parseCommand(buffer("gets mykey other"));
+
+    // then
+    assertThat(command).isEqualTo(new GetsCommand(List.of("mykey", "other")));
+    assertThat(command.name()).isEqualTo(GETS);
   }
 
   @Test
