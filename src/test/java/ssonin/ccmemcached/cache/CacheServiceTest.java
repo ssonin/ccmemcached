@@ -24,7 +24,11 @@ import static org.mockito.Mockito.mock;
 import static ssonin.ccmemcached.cache.CacheEntry.cacheEntry;
 import static ssonin.ccmemcached.cache.ExpiryUpdate.PRESERVE;
 import static ssonin.ccmemcached.cache.ExpiryUpdate.RESET;
+import static ssonin.ccmemcached.cache.StoreResult.EXISTS;
+import static ssonin.ccmemcached.cache.StoreResult.NOT_FOUND;
+import static ssonin.ccmemcached.cache.StoreResult.STORED;
 import static ssonin.ccmemcached.protocol.command.AddCommand.Builder.addCommand;
+import static ssonin.ccmemcached.protocol.command.CasCommand.Builder.casCommand;
 import static ssonin.ccmemcached.protocol.command.ReplaceCommand.Builder.replaceCommand;
 import static ssonin.ccmemcached.protocol.command.SetCommand.Builder.setCommand;
 
@@ -224,6 +228,94 @@ class CacheServiceTest {
       // then
       assertThat(stored).isFalse();
       assertThat(entries).doesNotContainKey("mykey");
+    }
+  }
+
+  @Nested
+  class CasOperation {
+
+    @Test
+    void stores_entry_when_cas_unique_matches() {
+      // given
+      var entries = new ConcurrentHashMap<String, CacheEntry>();
+      entries.put("mykey", cacheEntry()
+        .flags(1)
+        .ttl(ofSeconds(30))
+        .data("first".getBytes())
+        .casUnique(41L)
+        .build());
+      given(delegate.asMap()).willReturn(entries);
+      var command = casCommand()
+        .key("mykey")
+        .flags(7)
+        .expTime(900)
+        .bytes(6)
+        .casUnique(41L)
+        .build();
+      var data = "second".getBytes();
+
+      // when
+      var result = tested.cas(command, data);
+
+      // then
+      assertThat(result).isEqualTo(STORED);
+      assertThat(entries).containsEntry("mykey", cacheEntry()
+        .flags(7)
+        .ttl(ofSeconds(900))
+        .data(data)
+        .casUnique(1L)
+        .expiryUpdate(RESET)
+        .build());
+    }
+
+    @Test
+    void returns_exists_and_preserves_entry_when_cas_unique_does_not_match() {
+      // given
+      var existing = cacheEntry()
+        .flags(1)
+        .ttl(ofSeconds(30))
+        .data("first".getBytes())
+        .casUnique(41L)
+        .expiryUpdate(RESET)
+        .build();
+      var entries = new ConcurrentHashMap<String, CacheEntry>();
+      entries.put("mykey", existing);
+      given(delegate.asMap()).willReturn(entries);
+      var command = casCommand()
+        .key("mykey")
+        .flags(7)
+        .expTime(900)
+        .bytes(6)
+        .casUnique(42L)
+        .build();
+
+      // when
+      var result = tested.cas(command, "second".getBytes());
+
+      // then
+      assertThat(result).isEqualTo(EXISTS);
+      assertThat(entries).containsEntry("mykey", existing);
+    }
+
+    @Test
+    void returns_not_found_when_key_is_absent() {
+      // given
+      var entries = new ConcurrentHashMap<String, CacheEntry>();
+      given(delegate.asMap()).willReturn(entries);
+      var command = casCommand()
+        .key("missing")
+        .flags(7)
+        .expTime(900)
+        .bytes(6)
+        .casUnique(42L)
+        .build();
+
+      // when
+      var result = tested.cas(command, "second".getBytes());
+
+      // then
+      assertThat(result).isEqualTo(NOT_FOUND);
+      assertThat(entries).doesNotContainKey("missing");
     }
   }
 

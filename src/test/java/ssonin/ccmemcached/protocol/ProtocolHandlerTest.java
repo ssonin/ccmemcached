@@ -7,6 +7,7 @@ import io.vertx.core.parsetools.RecordParser;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import ssonin.ccmemcached.cache.CacheService;
+import ssonin.ccmemcached.cache.StoreResult;
 import ssonin.ccmemcached.protocol.command.DecrCommand;
 import ssonin.ccmemcached.protocol.command.IncrCommand;
 import ssonin.ccmemcached.protocol.command.TouchCommand;
@@ -31,6 +32,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static ssonin.ccmemcached.cache.CacheEntry.cacheEntry;
 import static ssonin.ccmemcached.protocol.command.AddCommand.Builder.addCommand;
+import static ssonin.ccmemcached.protocol.command.CasCommand.Builder.casCommand;
 import static ssonin.ccmemcached.protocol.command.ReplaceCommand.Builder.replaceCommand;
 import static ssonin.ccmemcached.protocol.command.SetCommand.Builder.setCommand;
 
@@ -78,6 +80,15 @@ class ProtocolHandlerTest {
   void switches_parser_to_fixed_size_mode_when_replace_command_is_received() {
     // when
     parserHandler.handle(buffer("replace mykey 42 900 5"));
+
+    // then
+    then(parser).should().fixedSizeMode(5);
+  }
+
+  @Test
+  void switches_parser_to_fixed_size_mode_when_cas_command_is_received() {
+    // when
+    parserHandler.handle(buffer("cas mykey 42 900 5 1"));
 
     // then
     then(parser).should().fixedSizeMode(5);
@@ -252,6 +263,96 @@ class ProtocolHandlerTest {
 
     // then
     then(cacheService).should().replace(eq(expectedCommand), argThat(data -> Arrays.equals(data, "value".getBytes())));
+    then(socket).shouldHaveNoMoreInteractions();
+  }
+
+  @Test
+  void stores_value_and_writes_stored_response_when_cas_command_matches() {
+    // given
+    var expectedCommand = casCommand()
+      .key("mykey")
+      .flags(42)
+      .expTime(900)
+      .bytes(5)
+      .casUnique(1L)
+      .build();
+    given(cacheService.cas(eq(expectedCommand), any(byte[].class))).willReturn(StoreResult.STORED);
+
+    // when
+    parserHandler.handle(buffer("cas mykey 42 900 5 1"));
+    parserHandler.handle(buffer("value"));
+    parserHandler.handle(buffer("\r\n"));
+
+    // then
+    then(cacheService).should().cas(eq(expectedCommand), argThat(data -> Arrays.equals(data, "value".getBytes())));
+    then(parser).should(times(2)).delimitedMode("\r\n");
+    then(socket).should().write("STORED\r\n");
+  }
+
+  @Test
+  void writes_exists_when_cas_unique_does_not_match() {
+    // given
+    var expectedCommand = casCommand()
+      .key("mykey")
+      .flags(42)
+      .expTime(900)
+      .bytes(5)
+      .casUnique(1L)
+      .build();
+    given(cacheService.cas(eq(expectedCommand), any(byte[].class))).willReturn(StoreResult.EXISTS);
+
+    // when
+    parserHandler.handle(buffer("cas mykey 42 900 5 1"));
+    parserHandler.handle(buffer("value"));
+    parserHandler.handle(buffer("\r\n"));
+
+    // then
+    then(cacheService).should().cas(eq(expectedCommand), argThat(data -> Arrays.equals(data, "value".getBytes())));
+    then(socket).should().write("EXISTS\r\n");
+  }
+
+  @Test
+  void writes_not_found_when_cas_target_is_missing() {
+    // given
+    var expectedCommand = casCommand()
+      .key("mykey")
+      .flags(42)
+      .expTime(900)
+      .bytes(5)
+      .casUnique(1L)
+      .build();
+    given(cacheService.cas(eq(expectedCommand), any(byte[].class))).willReturn(StoreResult.NOT_FOUND);
+
+    // when
+    parserHandler.handle(buffer("cas mykey 42 900 5 1"));
+    parserHandler.handle(buffer("value"));
+    parserHandler.handle(buffer("\r\n"));
+
+    // then
+    then(cacheService).should().cas(eq(expectedCommand), argThat(data -> Arrays.equals(data, "value".getBytes())));
+    then(socket).should().write("NOT_FOUND\r\n");
+  }
+
+  @Test
+  void stores_value_without_writing_response_when_cas_uses_noreply() {
+    // given
+    var expectedCommand = casCommand()
+      .key("mykey")
+      .flags(7)
+      .expTime(900)
+      .bytes(5)
+      .casUnique(1L)
+      .noReply(true)
+      .build();
+    given(cacheService.cas(eq(expectedCommand), any(byte[].class))).willReturn(StoreResult.STORED);
+
+    // when
+    parserHandler.handle(buffer("cas mykey 7 900 5 1 noreply"));
+    parserHandler.handle(buffer("value"));
+    parserHandler.handle(buffer("\r\n"));
+
+    // then
+    then(cacheService).should().cas(eq(expectedCommand), argThat(data -> Arrays.equals(data, "value".getBytes())));
     then(socket).shouldHaveNoMoreInteractions();
   }
 

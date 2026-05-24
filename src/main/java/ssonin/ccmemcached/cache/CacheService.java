@@ -2,6 +2,7 @@ package ssonin.ccmemcached.cache;
 
 import com.github.benmanes.caffeine.cache.Cache;
 import ssonin.ccmemcached.protocol.command.AddCommand;
+import ssonin.ccmemcached.protocol.command.CasCommand;
 import ssonin.ccmemcached.protocol.command.DecrCommand;
 import ssonin.ccmemcached.protocol.command.IncrCommand;
 import ssonin.ccmemcached.protocol.command.NumericCommand;
@@ -25,6 +26,9 @@ import static java.nio.charset.StandardCharsets.US_ASCII;
 import static ssonin.ccmemcached.cache.CacheEntry.cacheEntry;
 import static ssonin.ccmemcached.cache.ExpiryUpdate.PRESERVE;
 import static ssonin.ccmemcached.cache.ExpiryUpdate.RESET;
+import static ssonin.ccmemcached.cache.StoreResult.EXISTS;
+import static ssonin.ccmemcached.cache.StoreResult.NOT_FOUND;
+import static ssonin.ccmemcached.cache.StoreResult.STORED;
 
 public final class CacheService {
 
@@ -81,6 +85,22 @@ public final class CacheService {
 
   public boolean replace(ReplaceCommand command, byte[] data) {
     return delegate.asMap().computeIfPresent(command.key(), (key, existing) -> toCacheEntry(command, data)) != null;
+  }
+
+  public StoreResult cas(CasCommand command, byte[] data) {
+    final var entries = delegate.asMap();
+    while (true) {
+      final var existing = entries.get(command.key());
+      if (existing == null) {
+        return NOT_FOUND;
+      }
+      if (existing.casUnique() != command.casUnique()) {
+        return EXISTS;
+      }
+      if (entries.replace(command.key(), existing, toCacheEntry(command, data))) {
+        return STORED;
+      }
+    }
   }
 
   private OptionalLong updateNumericValue(NumericCommand command) {

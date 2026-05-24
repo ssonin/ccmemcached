@@ -11,6 +11,7 @@ import java.util.function.Function;
 
 import static java.util.Objects.requireNonNull;
 import static ssonin.ccmemcached.protocol.command.CommandName.ADD;
+import static ssonin.ccmemcached.protocol.command.CommandName.CAS;
 import static ssonin.ccmemcached.protocol.command.CommandName.DECR;
 import static ssonin.ccmemcached.protocol.command.CommandName.DELETE;
 import static ssonin.ccmemcached.protocol.command.CommandName.GET;
@@ -28,6 +29,7 @@ public final class CommandParser {
 
   private static final Map<CommandName, Function<String[], Command>> parsers = Map.of(
     ADD, AddCommandParser::parse,
+    CAS, CasCommandParser::parse,
     DECR, DecrCommandParser::parse,
     DELETE, DeleteCommandParser::parse,
     GET, GetCommandParser::parse,

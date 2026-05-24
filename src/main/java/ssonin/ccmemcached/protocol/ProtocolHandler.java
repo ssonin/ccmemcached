@@ -6,6 +6,7 @@ import io.vertx.core.parsetools.RecordParser;
 import ssonin.ccmemcached.cache.CacheEntry;
 import ssonin.ccmemcached.cache.CacheService;
 import ssonin.ccmemcached.protocol.command.AddCommand;
+import ssonin.ccmemcached.protocol.command.CasCommand;
 import ssonin.ccmemcached.protocol.command.Command;
 import ssonin.ccmemcached.protocol.command.DecrCommand;
 import ssonin.ccmemcached.protocol.command.DeleteCommand;
@@ -86,6 +87,7 @@ public final class ProtocolHandler {
   private void dispatch(Command command) {
     switch (command) {
       case AddCommand addCommand -> startStorage(addCommand);
+      case CasCommand casCommand -> startStorage(casCommand);
       case DecrCommand decrCommand -> handleDecr(decrCommand);
       case DeleteCommand deleteCommand -> handleDelete(deleteCommand);
       case IncrCommand incrCommand -> handleIncr(incrCommand);
@@ -167,6 +169,7 @@ public final class ProtocolHandler {
   private void completeStorageWrite() {
     final var response = switch (pendingStorageCommand) {
       case AddCommand addCommand -> cacheService.add(addCommand, data) ? "STORED" : "NOT_STORED";
+      case CasCommand casCommand -> cacheService.cas(casCommand, data).name();
       case ReplaceCommand replaceCommand -> cacheService.replace(replaceCommand, data) ? "STORED" : "NOT_STORED";
       case SetCommand setCommand -> {
         cacheService.put(setCommand, data);

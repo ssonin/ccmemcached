@@ -9,6 +9,7 @@ The current implementation supports these text protocol commands:
 - `set`
 - `get`
 - `gets`
+- `cas`
 - `delete`
 - `add`
 - `replace`
@@ -70,7 +71,7 @@ The project targets Java 25. Java 25 language features such as unnamed pattern v
 ### Command parsing
 
 - `src/main/java/ssonin/ccmemcached/protocol/command/CommandName.java`
-  - Lists implemented command names: `ADD`, `DECR`, `DELETE`, `GET`, `GETS`, `INCR`, `REPLACE`, `SET`, `TOUCH`.
+  - Lists implemented command names: `ADD`, `CAS`, `DECR`, `DELETE`, `GET`, `GETS`, `INCR`, `REPLACE`, `SET`, `TOUCH`.
 
 - `src/main/java/ssonin/ccmemcached/protocol/command/parser/CommandParser.java`
   - Parses the command line into a command record.
@@ -153,7 +154,6 @@ Run both suites before calling broad protocol changes complete:
 ## Current Gaps and Likely Next Work
 
 - Implement `append` and `prepend` for storage-command breadth.
-- Implement `cas` for compare-and-set semantics.
 - Decide whether wire error formatting should exactly match Memcached.
 - Validate the trailing CRLF segment after storage payloads more strictly.
 - Consider enforcing max key count for multi-key `get`.

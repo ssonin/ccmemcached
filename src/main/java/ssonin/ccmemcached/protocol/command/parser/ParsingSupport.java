@@ -104,4 +104,13 @@ final class ParsingSupport {
       throw new ClientError("delta must be a valid 64-bit integer, got '%s'".formatted(value));
     }
   }
+
+  static long parseCasUnique(String value) {
+    try {
+      return parseUnsignedLong(value);
+    } catch (NumberFormatException e) {
+      log.debug("Invalid cas unique value: {}", value, e);
+      throw new ClientError("cas unique must be a valid 64-bit integer, got '%s'".formatted(value));
+    }
+  }
 }
