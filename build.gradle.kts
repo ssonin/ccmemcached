@@ -20,7 +20,7 @@ val junitJupiterVersion = "5.9.1"
 val logbackVersion = "1.5.32"
 val mockitoVersion = "5.20.0"
 val slf4jVersion = "2.0.17"
-val vertxVersion = "5.0.8"
+val vertxVersion = "5.0.12"
 
 val mainVerticleName = "ssonin.ccmemcached.App"
 val launcherClassName = "io.vertx.launcher.application.VertxApplication"
@@ -42,8 +42,8 @@ dependencies {
 }
 
 java {
-  sourceCompatibility = JavaVersion.VERSION_21
-  targetCompatibility = JavaVersion.VERSION_21
+  sourceCompatibility = JavaVersion.VERSION_25
+  targetCompatibility = JavaVersion.VERSION_25
 }
 
 testing {
@@ -77,7 +77,7 @@ testing {
       targets {
         all {
           testTask.configure {
-            shouldRunAfter(tasks.named("test"))
+            shouldRunAfter(test)
           }
         }
       }

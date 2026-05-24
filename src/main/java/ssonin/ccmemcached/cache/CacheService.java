@@ -86,8 +86,8 @@ public final class CacheService {
     final var updated = delegate.asMap().computeIfPresent(command.key(), (ignored, existing) -> {
       final var current = parseNumericValue(existing.data());
       final var next = switch (command) {
-        case IncrCommand __ -> current + command.delta();
-        case DecrCommand __ -> compareUnsigned(current, command.delta()) <= 0L
+        case IncrCommand _ -> current + command.delta();
+        case DecrCommand _ -> compareUnsigned(current, command.delta()) <= 0L
           ? 0L
           : current - command.delta();
       };

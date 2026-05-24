@@ -30,6 +30,7 @@ public final class ProtocolHandler {
   private final CacheService cacheService;
   private final NetSocket socket;
   private final RecordParser parser;
+
   private State state = AWAITING_COMMAND;
   private StorageCommand pendingStorageCommand;
   private byte[] data;

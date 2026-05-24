@@ -21,6 +21,10 @@ import static ssonin.ccmemcached.protocol.command.CommandName.TOUCH;
 
 public final class CommandParser {
 
+  private CommandParser() {
+    throw new AssertionError("Utility class");
+  }
+
   private static final Map<CommandName, Function<String[], Command>> parsers = Map.of(
     ADD, AddCommandParser::parse,
     DECR, DecrCommandParser::parse,

@@ -12,7 +12,11 @@ import static ssonin.ccmemcached.protocol.command.parser.ParsingSupport.parseNoR
 
 final class SetCommandParser {
 
-  public static SetCommand parse(String[] parts) {
+  private SetCommandParser() {
+    throw new AssertionError("Utility class");
+  }
+
+  static SetCommand parse(String[] parts) {
     if (parts.length < 5) {
       throw new ClientError("expected at least 5 fields, got %d".formatted(parts.length));
     }

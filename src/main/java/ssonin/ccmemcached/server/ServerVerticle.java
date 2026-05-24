@@ -11,7 +11,7 @@ import static org.slf4j.LoggerFactory.getLogger;
 
 public final class ServerVerticle extends VerticleBase {
 
-  private static final Logger logger = getLogger(ServerVerticle.class);
+  private static final Logger log = getLogger(ServerVerticle.class);
 
   private final CacheService cacheService;
   private int actualPort;
@@ -25,13 +25,13 @@ public final class ServerVerticle extends VerticleBase {
     final var port = config().getInteger("http.port");
     return vertx.createNetServer()
       .connectHandler(socket -> {
-        logger.info("Client connected: {}", socket.remoteAddress());
+        log.info("Client connected: {}", socket.remoteAddress());
         handle(socket);
       })
       .listen(port)
       .onSuccess(server -> {
         actualPort = server.actualPort();
-        logger.info("TCP server started on port {}", server.actualPort());
+        log.info("TCP server started on port {}", server.actualPort());
       })
       .onFailure(Throwable::printStackTrace);
   }
@@ -44,7 +44,7 @@ public final class ServerVerticle extends VerticleBase {
   }
 
   private void handle(NetSocket socket) {
-    socket.closeHandler(s -> logger.info("Client disconnected: {}", socket.remoteAddress()));
+    socket.closeHandler(_ -> log.info("Client disconnected: {}", socket.remoteAddress()));
     new ProtocolHandler(cacheService, socket).start();
   }
 }

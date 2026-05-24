@@ -11,7 +11,7 @@ final class ParsingSupport {
   private static final int MAX_KEY_LENGTH = 250;
   private static final int MAX_VALUE_BYTES = 1024 * 1024;
 
-  private static final Logger logger = getLogger(ParsingSupport.class);
+  private static final Logger log = getLogger(ParsingSupport.class);
 
   private ParsingSupport() {
     throw new AssertionError("Utility class");
@@ -51,7 +51,7 @@ final class ParsingSupport {
       }
       return flags;
     } catch (NumberFormatException e) {
-      logger.debug("Invalid flags value: {}", value, e);
+      log.debug("Invalid flags value: {}", value, e);
       throw new ClientError("flags must be a valid integer, got '%s'".formatted(value));
     }
   }
@@ -60,7 +60,7 @@ final class ParsingSupport {
     try {
       return Integer.parseInt(value);
     } catch (NumberFormatException e) {
-      logger.debug("Invalid exptime value: {}", value, e);
+      log.debug("Invalid exptime value: {}", value, e);
       throw new ClientError("exptime must be a valid integer, got '%s'".formatted(value));
     }
   }
@@ -76,7 +76,7 @@ final class ParsingSupport {
       }
       return bytes;
     } catch (NumberFormatException e) {
-      logger.debug("Invalid bytes value: {}", value, e);
+      log.debug("Invalid bytes value: {}", value, e);
       throw new ClientError("bytes must be a valid integer, got '%s'".formatted(value));
     }
   }
@@ -85,7 +85,7 @@ final class ParsingSupport {
     try {
       return parseUnsignedLong(value);
     } catch (NumberFormatException e) {
-      logger.debug("Invalid delta value: {}", value, e);
+      log.debug("Invalid delta value: {}", value, e);
       throw new ClientError("delta must be a valid 64-bit integer, got '%s'".formatted(value));
     }
   }

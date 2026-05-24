@@ -11,7 +11,11 @@ import static ssonin.ccmemcached.protocol.command.parser.ParsingSupport.parseKey
 
 final class GetCommandParser {
 
-  public static GetCommand parse(String[] parts) {
+  private GetCommandParser() {
+    throw new AssertionError("Utility class");
+  }
+
+  static GetCommand parse(String[] parts) {
     if (parts.length < 2) {
       throw new ClientError("expected at least 2 fields, got %d".formatted(parts.length));
     }

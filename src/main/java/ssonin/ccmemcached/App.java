@@ -18,7 +18,8 @@ import static org.slf4j.LoggerFactory.getLogger;
 
 public final class App extends VerticleBase {
 
-  private static final Logger LOG = getLogger(App.class);
+  private static final Logger log = getLogger(App.class);
+
   private final Supplier<CacheService> cacheServiceSupplier;
 
   private int actualPort;
@@ -40,9 +41,9 @@ public final class App extends VerticleBase {
         serverVerticle,
         new DeploymentOptions().setConfig(new JsonObject().put("http.port", port)))
       .onSuccess(id -> {
-        this.actualPort = serverVerticle.actualPort();
-        LOG.info("Config: {}", config());
-        LOG.info("{}, id: {}", ServerVerticle.class.getName(), id);
+        actualPort = serverVerticle.actualPort();
+        log.info("Config: {}", config());
+        log.info("{}, id: {}", ServerVerticle.class.getName(), id);
       })
       .onFailure(Throwable::printStackTrace);
   }
