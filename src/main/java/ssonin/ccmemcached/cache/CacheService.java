@@ -5,10 +5,10 @@ import ssonin.ccmemcached.protocol.command.AddCommand;
 import ssonin.ccmemcached.protocol.command.CasCommand;
 import ssonin.ccmemcached.protocol.command.DecrCommand;
 import ssonin.ccmemcached.protocol.command.IncrCommand;
+import ssonin.ccmemcached.protocol.command.MetadataStorageCommand;
 import ssonin.ccmemcached.protocol.command.NumericCommand;
 import ssonin.ccmemcached.protocol.command.ReplaceCommand;
 import ssonin.ccmemcached.protocol.command.SetCommand;
-import ssonin.ccmemcached.protocol.command.StorageCommand;
 import ssonin.ccmemcached.protocol.command.TouchCommand;
 import ssonin.ccmemcached.protocol.error.ClientError;
 
@@ -53,7 +53,7 @@ public final class CacheService {
   }
 
   public boolean touch(TouchCommand command) {
-    return delegate.asMap().computeIfPresent(command.key(), (key, existing) ->
+    return delegate.asMap().computeIfPresent(command.key(), (_, existing) ->
       cacheEntry()
         .flags(existing.flags())
         .ttl(evaluateTtl(command.expTime()))
@@ -84,7 +84,7 @@ public final class CacheService {
   }
 
   public boolean replace(ReplaceCommand command, byte[] data) {
-    return delegate.asMap().computeIfPresent(command.key(), (key, existing) -> toCacheEntry(command, data)) != null;
+    return delegate.asMap().computeIfPresent(command.key(), (_, _) -> toCacheEntry(command, data)) != null;
   }
 
   public StoreResult cas(CasCommand command, byte[] data) {
@@ -105,7 +105,7 @@ public final class CacheService {
 
   private OptionalLong updateNumericValue(NumericCommand command) {
     final var updatedValue = new AtomicLong();
-    final var updated = delegate.asMap().computeIfPresent(command.key(), (ignored, existing) -> {
+    final var updated = delegate.asMap().computeIfPresent(command.key(), (_, existing) -> {
       final var current = parseNumericValue(existing.data());
       final var next = switch (command) {
         case IncrCommand _ -> current + command.delta();
@@ -149,7 +149,7 @@ public final class CacheService {
     }
   }
 
-  private CacheEntry toCacheEntry(StorageCommand command, byte[] data) {
+  private CacheEntry toCacheEntry(MetadataStorageCommand command, byte[] data) {
     return cacheEntry()
       .flags(command.flags())
       .ttl(evaluateTtl(command.expTime()))

@@ -9,7 +9,7 @@ public record CasCommand(
   int bytes,
   long casUnique,
   boolean noReply
-) implements StorageCommand {
+) implements MetadataStorageCommand {
 
   @Override
   public CommandName name() {

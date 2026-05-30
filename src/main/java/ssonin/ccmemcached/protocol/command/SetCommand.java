@@ -8,7 +8,7 @@ public record SetCommand(
   int expTime,
   int bytes,
   boolean noReply
-) implements StorageCommand {
+) implements MetadataStorageCommand {
 
   @Override
   public CommandName name() {
