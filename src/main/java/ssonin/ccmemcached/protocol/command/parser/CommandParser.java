@@ -9,8 +9,10 @@ import ssonin.ccmemcached.protocol.error.CommandNameError;
 import java.util.Map;
 import java.util.function.Function;
 
+import static java.util.Map.entry;
 import static java.util.Objects.requireNonNull;
 import static ssonin.ccmemcached.protocol.command.CommandName.ADD;
+import static ssonin.ccmemcached.protocol.command.CommandName.APPEND;
 import static ssonin.ccmemcached.protocol.command.CommandName.CAS;
 import static ssonin.ccmemcached.protocol.command.CommandName.DECR;
 import static ssonin.ccmemcached.protocol.command.CommandName.DELETE;
@@ -27,17 +29,18 @@ public final class CommandParser {
     throw new AssertionError("Utility class");
   }
 
-  private static final Map<CommandName, Function<String[], Command>> parsers = Map.of(
-    ADD, AddCommandParser::parse,
-    CAS, CasCommandParser::parse,
-    DECR, DecrCommandParser::parse,
-    DELETE, DeleteCommandParser::parse,
-    GET, GetCommandParser::parse,
-    GETS, GetsCommandParser::parse,
-    INCR, IncrCommandParser::parse,
-    REPLACE, ReplaceCommandParser::parse,
-    SET, SetCommandParser::parse,
-    TOUCH, TouchCommandParser::parse
+  private static final Map<CommandName, Function<String[], Command>> parsers = Map.ofEntries(
+    entry(ADD, AddCommandParser::parse),
+    entry(APPEND, AppendCommandParser::parse),
+    entry(CAS, CasCommandParser::parse),
+    entry(DECR, DecrCommandParser::parse),
+    entry(DELETE, DeleteCommandParser::parse),
+    entry(GET, GetCommandParser::parse),
+    entry(GETS, GetsCommandParser::parse),
+    entry(INCR, IncrCommandParser::parse),
+    entry(REPLACE, ReplaceCommandParser::parse),
+    entry(SET, SetCommandParser::parse),
+    entry(TOUCH, TouchCommandParser::parse)
   );
 
   public static Command parseCommand(Buffer buffer) {

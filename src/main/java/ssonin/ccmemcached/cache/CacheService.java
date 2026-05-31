@@ -2,6 +2,7 @@ package ssonin.ccmemcached.cache;
 
 import com.github.benmanes.caffeine.cache.Cache;
 import ssonin.ccmemcached.protocol.command.AddCommand;
+import ssonin.ccmemcached.protocol.command.AppendCommand;
 import ssonin.ccmemcached.protocol.command.CasCommand;
 import ssonin.ccmemcached.protocol.command.DecrCommand;
 import ssonin.ccmemcached.protocol.command.IncrCommand;
@@ -15,6 +16,7 @@ import ssonin.ccmemcached.protocol.error.ClientError;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.InstantSource;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.OptionalLong;
@@ -28,12 +30,14 @@ import static ssonin.ccmemcached.cache.ExpiryUpdate.PRESERVE;
 import static ssonin.ccmemcached.cache.ExpiryUpdate.RESET;
 import static ssonin.ccmemcached.cache.StoreResult.EXISTS;
 import static ssonin.ccmemcached.cache.StoreResult.NOT_FOUND;
+import static ssonin.ccmemcached.cache.StoreResult.NOT_STORED;
 import static ssonin.ccmemcached.cache.StoreResult.STORED;
 
 public final class CacheService {
 
   private static final Duration NEVER_EXPIRES = Duration.ofDays(365L * 100);
   private static final long MAX_RELATIVE_EXPTIME = 2_592_000L;
+  private static final int MAX_VALUE_BYTES = 1024 * 1024;
 
   private final Cache<String, CacheEntry> delegate;
   private final InstantSource clock;
@@ -101,6 +105,32 @@ public final class CacheService {
         return STORED;
       }
     }
+  }
+
+  public StoreResult append(AppendCommand command, byte[] data) {
+    final var entries = delegate.asMap();
+    while (true) {
+      final var existing = entries.get(command.key());
+      if (existing == null || data.length > MAX_VALUE_BYTES - existing.data().length) {
+        return NOT_STORED;
+      }
+      final var updated = cacheEntry()
+        .flags(existing.flags())
+        .ttl(existing.ttl())
+        .data(concat(existing.data(), data))
+        .casUnique(nextCasUnique())
+        .expiryUpdate(PRESERVE)
+        .build();
+      if (entries.replace(command.key(), existing, updated)) {
+        return STORED;
+      }
+    }
+  }
+
+  private byte[] concat(byte[] first, byte[] second) {
+    final var result = Arrays.copyOf(first, first.length + second.length);
+    System.arraycopy(second, 0, result, first.length, second.length);
+    return result;
   }
 
   private OptionalLong updateNumericValue(NumericCommand command) {

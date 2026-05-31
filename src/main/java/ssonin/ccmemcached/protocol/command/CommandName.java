@@ -2,6 +2,7 @@ package ssonin.ccmemcached.protocol.command;
 
 public enum CommandName {
   ADD,
+  APPEND,
   CAS,
   DECR,
   DELETE,

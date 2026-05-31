@@ -2,6 +2,7 @@ package ssonin.ccmemcached.protocol.command.parser;
 
 import org.junit.jupiter.api.Test;
 import ssonin.ccmemcached.protocol.command.AddCommand;
+import ssonin.ccmemcached.protocol.command.AppendCommand;
 import ssonin.ccmemcached.protocol.command.CasCommand;
 import ssonin.ccmemcached.protocol.command.DecrCommand;
 import ssonin.ccmemcached.protocol.command.DeleteCommand;
@@ -19,8 +20,10 @@ import static io.vertx.core.buffer.Buffer.buffer;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.catchThrowable;
 import static ssonin.ccmemcached.protocol.command.AddCommand.Builder.addCommand;
+import static ssonin.ccmemcached.protocol.command.AppendCommand.Builder.appendCommand;
 import static ssonin.ccmemcached.protocol.command.CasCommand.Builder.casCommand;
 import static ssonin.ccmemcached.protocol.command.CommandName.ADD;
+import static ssonin.ccmemcached.protocol.command.CommandName.APPEND;
 import static ssonin.ccmemcached.protocol.command.CommandName.CAS;
 import static ssonin.ccmemcached.protocol.command.CommandName.DECR;
 import static ssonin.ccmemcached.protocol.command.CommandName.DELETE;
@@ -69,6 +72,23 @@ class CommandParserTest {
       .bytes(5)
       .build());
     assertThat(command.name()).isEqualTo(ADD);
+  }
+
+  @Test
+  void dispatches_to_append_command_parser() {
+    // given
+    var input = buffer("append mykey 0 900 5");
+
+    // when
+    var command = parseCommand(input);
+
+    // then
+    assertThat(command).isEqualTo(appendCommand()
+      .key("mykey")
+      .bytes(5)
+      .build());
+    assertThat(command.name()).isEqualTo(APPEND);
+    assertThat(command).isInstanceOf(AppendCommand.class);
   }
 
   @Test
