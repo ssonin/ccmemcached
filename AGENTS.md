@@ -137,6 +137,8 @@ Command-specific parser classes are utility classes with private constructors an
 
 Unexpected runtime failures during command processing are logged, returned as the generic `SERVER_ERROR internal server error`, and close only the affected client connection.
 
+Transport-level socket exceptions are logged by `ServerVerticle` without attempting to write a protocol response.
+
 ## Testing
 
 There are unit tests and integration tests.

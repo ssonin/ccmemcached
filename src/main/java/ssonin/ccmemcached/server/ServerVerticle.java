@@ -44,6 +44,7 @@ public final class ServerVerticle extends VerticleBase {
   }
 
   private void handle(NetSocket socket) {
+    socket.exceptionHandler(error -> log.warn("Client connection error: {}", socket.remoteAddress(), error));
     socket.closeHandler(_ -> log.info("Client disconnected: {}", socket.remoteAddress()));
     new ProtocolHandler(cacheService, socket).start();
   }
