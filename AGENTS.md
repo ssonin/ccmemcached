@@ -134,6 +134,8 @@ Command-specific parser classes are utility classes with private constructors an
 
 `ApplicationError` keeps its diagnostic message separate from its error type. `ProtocolHandler` formats errors at the wire boundary.
 
+Unexpected runtime failures during command processing are logged, returned as the generic `SERVER_ERROR internal server error`, and close only the affected client connection.
+
 ## Testing
 
 There are unit tests and integration tests.

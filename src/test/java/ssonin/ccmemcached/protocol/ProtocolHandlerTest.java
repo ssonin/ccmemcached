@@ -27,6 +27,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.then;
 import static org.mockito.BDDMockito.willAnswer;
+import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -910,6 +911,41 @@ class ProtocolHandlerTest {
     then(socket).should().write("CLIENT_ERROR value is not a valid unsigned integer\r\n");
     then(cacheService).should().delete("mykey");
     then(socket).should().write("DELETED\r\n");
+  }
+
+  @Test
+  void writes_server_error_and_closes_connection_after_unexpected_immediate_command_failure() {
+    // given
+    given(cacheService.delete("mykey")).willThrow(new IllegalStateException("sensitive details"));
+
+    // when
+    parserHandler.handle(buffer("delete mykey"));
+
+    // then
+    then(socket).should().end(buffer("SERVER_ERROR internal server error\r\n"));
+    then(socket).shouldHaveNoMoreInteractions();
+  }
+
+  @Test
+  void writes_server_error_and_closes_connection_after_unexpected_storage_command_failure() {
+    // given
+    var command = setCommand()
+      .key("mykey")
+      .flags(7)
+      .expTime(60)
+      .bytes(5)
+      .build();
+    willThrow(new IllegalStateException("sensitive details"))
+      .given(cacheService).put(eq(command), any(byte[].class));
+
+    // when
+    parserHandler.handle(buffer("set mykey 7 60 5"));
+    parserHandler.handle(buffer("value"));
+    parserHandler.handle(buffer("\r\n"));
+
+    // then
+    then(socket).should().end(buffer("SERVER_ERROR internal server error\r\n"));
+    then(socket).shouldHaveNoMoreInteractions();
   }
 
   private RecordParser parser() {

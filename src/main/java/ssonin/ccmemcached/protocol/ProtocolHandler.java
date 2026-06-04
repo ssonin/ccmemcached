@@ -3,6 +3,7 @@ package ssonin.ccmemcached.protocol;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.net.NetSocket;
 import io.vertx.core.parsetools.RecordParser;
+import org.slf4j.Logger;
 import ssonin.ccmemcached.cache.CacheEntry;
 import ssonin.ccmemcached.cache.CacheService;
 import ssonin.ccmemcached.protocol.command.AddCommand;
@@ -20,16 +21,20 @@ import ssonin.ccmemcached.protocol.command.StorageCommand;
 import ssonin.ccmemcached.protocol.command.TouchCommand;
 import ssonin.ccmemcached.protocol.error.ApplicationError;
 import ssonin.ccmemcached.protocol.error.ClientError;
+import ssonin.ccmemcached.protocol.error.ErrorType;
 
 import static io.vertx.core.buffer.Buffer.buffer;
+import static org.slf4j.LoggerFactory.getLogger;
 import static ssonin.ccmemcached.protocol.ProtocolHandler.State.AWAITING_COMMAND;
 import static ssonin.ccmemcached.protocol.ProtocolHandler.State.AWAITING_DATA;
 import static ssonin.ccmemcached.protocol.ProtocolHandler.State.AWAITING_TRAILING_CRLF;
 import static ssonin.ccmemcached.protocol.command.parser.CommandParser.parseCommand;
+import static ssonin.ccmemcached.protocol.error.ErrorType.SERVER_ERROR;
 
 public final class ProtocolHandler {
 
   private static final int MAX_COMMAND_LINE_BYTES = 8 * 1024;
+  private static final Logger log = getLogger(ProtocolHandler.class);
 
   private final CacheService cacheService;
   private final NetSocket socket;
@@ -60,13 +65,20 @@ public final class ProtocolHandler {
     } catch (ApplicationError e) {
       resetState();
       socket.write(errorResponse(e));
+    } catch (RuntimeException e) {
+      log.error("Unexpected error while processing client command", e);
+      socket.end(buffer(errorResponse(SERVER_ERROR, "internal server error")));
     }
   }
 
   private String errorResponse(ApplicationError error) {
-    return switch (error.type()) {
+    return errorResponse(error.type(), error.getMessage());
+  }
+
+  private String errorResponse(ErrorType type, String message) {
+    return switch (type) {
       case ERROR -> "ERROR\r\n";
-      case CLIENT_ERROR, SERVER_ERROR -> "%s %s\r\n".formatted(error.type(), error.getMessage());
+      case CLIENT_ERROR, SERVER_ERROR -> "%s %s\r\n".formatted(type, message);
     };
   }
 
