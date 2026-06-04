@@ -76,6 +76,7 @@ The project targets Java 25. Java 25 language features such as unnamed pattern v
 - `src/main/java/ssonin/ccmemcached/protocol/MemcachedLimits.java`
   - Owns server-wide protocol and resource limits:
     - maximum value bytes
+    - maximum key bytes
     - maximum command-line bytes
     - maximum keys for multi-key retrieval
 
@@ -89,7 +90,7 @@ The project targets Java 25. Java 25 language features such as unnamed pattern v
 - `src/main/java/ssonin/ccmemcached/protocol/command/parser/ParsingSupport.java`
   - Contains shared parser validation helpers.
   - Validates:
-    - key presence and max length
+    - key presence and maximum UTF-8 byte length
     - control characters in keys
     - `flags` numeric range
     - numeric `exptime`

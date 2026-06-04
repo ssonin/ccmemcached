@@ -7,14 +7,14 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static java.lang.Long.parseUnsignedLong;
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Collections.unmodifiableList;
 import static org.slf4j.LoggerFactory.getLogger;
 import static ssonin.ccmemcached.protocol.MemcachedLimits.MAX_GET_KEYS;
+import static ssonin.ccmemcached.protocol.MemcachedLimits.MAX_KEY_BYTES;
 import static ssonin.ccmemcached.protocol.MemcachedLimits.MAX_VALUE_BYTES;
 
 final class ParsingSupport {
-
-  private static final int MAX_KEY_LENGTH = 250;
 
   private static final Logger log = getLogger(ParsingSupport.class);
 
@@ -26,8 +26,8 @@ final class ParsingSupport {
     if (key.isEmpty()) {
       throw new ClientError("key must not be empty");
     }
-    if (key.length() > MAX_KEY_LENGTH) {
-      throw new ClientError("key exceeds maximum length of %d".formatted(MAX_KEY_LENGTH));
+    if (key.getBytes(UTF_8).length > MAX_KEY_BYTES) {
+      throw new ClientError("key exceeds maximum length of %d bytes".formatted(MAX_KEY_BYTES));
     }
     for (int i = 0; i < key.length(); i++) {
       final var c = key.charAt(i);

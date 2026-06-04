@@ -40,7 +40,31 @@ class ParsingSupportTest {
     }
 
     @Test
-    void throws_on_key_exceeding_max_length() {
+    void accepts_ascii_key_at_maximum_byte_length() {
+      // given
+      var key = "a".repeat(250);
+
+      // when
+      var parsedKey = parseKey(key);
+
+      // then
+      assertThat(parsedKey).isEqualTo(key);
+    }
+
+    @Test
+    void accepts_multibyte_key_at_maximum_byte_length() {
+      // given
+      var key = "\u00e9".repeat(125);
+
+      // when
+      var parsedKey = parseKey(key);
+
+      // then
+      assertThat(parsedKey).isEqualTo(key);
+    }
+
+    @Test
+    void throws_on_ascii_key_exceeding_maximum_byte_length() {
       // given
       var key = "a".repeat(251);
 
@@ -49,7 +73,20 @@ class ParsingSupportTest {
 
       // then
       assertThat(thrown).isInstanceOf(ApplicationError.class)
-        .hasMessage("key exceeds maximum length of 250");
+        .hasMessage("key exceeds maximum length of 250 bytes");
+    }
+
+    @Test
+    void throws_on_multibyte_key_exceeding_maximum_byte_length() {
+      // given
+      var key = "\u00e9".repeat(126);
+
+      // when
+      var thrown = catchThrowable(() -> parseKey(key));
+
+      // then
+      assertThat(thrown).isInstanceOf(ApplicationError.class)
+        .hasMessage("key exceeds maximum length of 250 bytes");
     }
 
     @Test
