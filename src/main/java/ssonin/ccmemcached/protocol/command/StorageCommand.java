@@ -1,7 +1,7 @@
 package ssonin.ccmemcached.protocol.command;
 
 public sealed interface StorageCommand extends Command
-  permits AppendCommand, MetadataStorageCommand {
+  permits AppendCommand, MetadataStorageCommand, PrependCommand {
 
   String key();
 

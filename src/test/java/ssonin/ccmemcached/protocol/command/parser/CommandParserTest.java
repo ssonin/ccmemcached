@@ -9,6 +9,7 @@ import ssonin.ccmemcached.protocol.command.DeleteCommand;
 import ssonin.ccmemcached.protocol.command.GetCommand;
 import ssonin.ccmemcached.protocol.command.GetsCommand;
 import ssonin.ccmemcached.protocol.command.IncrCommand;
+import ssonin.ccmemcached.protocol.command.PrependCommand;
 import ssonin.ccmemcached.protocol.command.ReplaceCommand;
 import ssonin.ccmemcached.protocol.command.TouchCommand;
 import ssonin.ccmemcached.protocol.error.ApplicationError;
@@ -30,9 +31,11 @@ import static ssonin.ccmemcached.protocol.command.CommandName.DELETE;
 import static ssonin.ccmemcached.protocol.command.CommandName.GET;
 import static ssonin.ccmemcached.protocol.command.CommandName.GETS;
 import static ssonin.ccmemcached.protocol.command.CommandName.INCR;
+import static ssonin.ccmemcached.protocol.command.CommandName.PREPEND;
 import static ssonin.ccmemcached.protocol.command.CommandName.REPLACE;
 import static ssonin.ccmemcached.protocol.command.CommandName.SET;
 import static ssonin.ccmemcached.protocol.command.CommandName.TOUCH;
+import static ssonin.ccmemcached.protocol.command.PrependCommand.Builder.prependCommand;
 import static ssonin.ccmemcached.protocol.command.ReplaceCommand.Builder.replaceCommand;
 import static ssonin.ccmemcached.protocol.command.SetCommand.Builder.setCommand;
 import static ssonin.ccmemcached.protocol.command.parser.CommandParser.parseCommand;
@@ -89,6 +92,23 @@ class CommandParserTest {
       .build());
     assertThat(command.name()).isEqualTo(APPEND);
     assertThat(command).isInstanceOf(AppendCommand.class);
+  }
+
+  @Test
+  void dispatches_to_prepend_command_parser() {
+    // given
+    var input = buffer("prepend mykey 0 900 5");
+
+    // when
+    var command = parseCommand(input);
+
+    // then
+    assertThat(command).isEqualTo(prependCommand()
+      .key("mykey")
+      .bytes(5)
+      .build());
+    assertThat(command.name()).isEqualTo(PREPEND);
+    assertThat(command).isInstanceOf(PrependCommand.class);
   }
 
   @Test

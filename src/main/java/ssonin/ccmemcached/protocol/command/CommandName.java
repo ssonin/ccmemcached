@@ -9,6 +9,7 @@ public enum CommandName {
   GET,
   GETS,
   INCR,
+  PREPEND,
   REPLACE,
   SET,
   TOUCH

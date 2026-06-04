@@ -19,6 +19,7 @@ import static ssonin.ccmemcached.protocol.command.CommandName.DELETE;
 import static ssonin.ccmemcached.protocol.command.CommandName.GET;
 import static ssonin.ccmemcached.protocol.command.CommandName.GETS;
 import static ssonin.ccmemcached.protocol.command.CommandName.INCR;
+import static ssonin.ccmemcached.protocol.command.CommandName.PREPEND;
 import static ssonin.ccmemcached.protocol.command.CommandName.REPLACE;
 import static ssonin.ccmemcached.protocol.command.CommandName.SET;
 import static ssonin.ccmemcached.protocol.command.CommandName.TOUCH;
@@ -38,6 +39,7 @@ public final class CommandParser {
     entry(GET, GetCommandParser::parse),
     entry(GETS, GetsCommandParser::parse),
     entry(INCR, IncrCommandParser::parse),
+    entry(PREPEND, PrependCommandParser::parse),
     entry(REPLACE, ReplaceCommandParser::parse),
     entry(SET, SetCommandParser::parse),
     entry(TOUCH, TouchCommandParser::parse)

@@ -34,6 +34,7 @@ import static ssonin.ccmemcached.cache.CacheEntry.cacheEntry;
 import static ssonin.ccmemcached.protocol.command.AddCommand.Builder.addCommand;
 import static ssonin.ccmemcached.protocol.command.AppendCommand.Builder.appendCommand;
 import static ssonin.ccmemcached.protocol.command.CasCommand.Builder.casCommand;
+import static ssonin.ccmemcached.protocol.command.PrependCommand.Builder.prependCommand;
 import static ssonin.ccmemcached.protocol.command.ReplaceCommand.Builder.replaceCommand;
 import static ssonin.ccmemcached.protocol.command.SetCommand.Builder.setCommand;
 
@@ -81,6 +82,15 @@ class ProtocolHandlerTest {
   void switches_parser_to_fixed_size_mode_when_append_command_is_received() {
     // when
     parserHandler.handle(buffer("append mykey 0 900 5"));
+
+    // then
+    then(parser).should().fixedSizeMode(5);
+  }
+
+  @Test
+  void switches_parser_to_fixed_size_mode_when_prepend_command_is_received() {
+    // when
+    parserHandler.handle(buffer("prepend mykey 0 900 5"));
 
     // then
     then(parser).should().fixedSizeMode(5);
@@ -267,6 +277,65 @@ class ProtocolHandlerTest {
 
     // then
     then(cacheService).should().append(eq(expectedCommand), argThat(data -> Arrays.equals(data, "value".getBytes())));
+    then(socket).shouldHaveNoMoreInteractions();
+  }
+
+  @Test
+  void prepends_value_and_writes_stored_response_when_prepend_command_completes() {
+    // given
+    var expectedCommand = prependCommand()
+      .key("mykey")
+      .bytes(5)
+      .build();
+    given(cacheService.prepend(eq(expectedCommand), any(byte[].class))).willReturn(StoreResult.STORED);
+
+    // when
+    parserHandler.handle(buffer("prepend mykey 42 900 5"));
+    parserHandler.handle(buffer("value"));
+    parserHandler.handle(buffer("\r\n"));
+
+    // then
+    then(cacheService).should().prepend(eq(expectedCommand), argThat(data -> Arrays.equals(data, "value".getBytes())));
+    then(parser).should(times(2)).delimitedMode("\r\n");
+    then(socket).should().write("STORED\r\n");
+  }
+
+  @Test
+  void writes_not_stored_when_prepend_target_is_missing() {
+    // given
+    var expectedCommand = prependCommand()
+      .key("mykey")
+      .bytes(5)
+      .build();
+    given(cacheService.prepend(eq(expectedCommand), any(byte[].class))).willReturn(StoreResult.NOT_STORED);
+
+    // when
+    parserHandler.handle(buffer("prepend mykey 42 900 5"));
+    parserHandler.handle(buffer("value"));
+    parserHandler.handle(buffer("\r\n"));
+
+    // then
+    then(cacheService).should().prepend(eq(expectedCommand), argThat(data -> Arrays.equals(data, "value".getBytes())));
+    then(socket).should().write("NOT_STORED\r\n");
+  }
+
+  @Test
+  void prepends_value_without_writing_response_when_prepend_uses_noreply() {
+    // given
+    var expectedCommand = prependCommand()
+      .key("mykey")
+      .bytes(5)
+      .noReply(true)
+      .build();
+    given(cacheService.prepend(eq(expectedCommand), any(byte[].class))).willReturn(StoreResult.STORED);
+
+    // when
+    parserHandler.handle(buffer("prepend mykey 7 900 5 noreply"));
+    parserHandler.handle(buffer("value"));
+    parserHandler.handle(buffer("\r\n"));
+
+    // then
+    then(cacheService).should().prepend(eq(expectedCommand), argThat(data -> Arrays.equals(data, "value".getBytes())));
     then(socket).shouldHaveNoMoreInteractions();
   }
 

@@ -8,6 +8,7 @@ import ssonin.ccmemcached.protocol.command.DecrCommand;
 import ssonin.ccmemcached.protocol.command.IncrCommand;
 import ssonin.ccmemcached.protocol.command.MetadataStorageCommand;
 import ssonin.ccmemcached.protocol.command.NumericCommand;
+import ssonin.ccmemcached.protocol.command.PrependCommand;
 import ssonin.ccmemcached.protocol.command.ReplaceCommand;
 import ssonin.ccmemcached.protocol.command.SetCommand;
 import ssonin.ccmemcached.protocol.command.TouchCommand;
@@ -118,6 +119,26 @@ public final class CacheService {
         .flags(existing.flags())
         .ttl(existing.ttl())
         .data(concat(existing.data(), data))
+        .casUnique(nextCasUnique())
+        .expiryUpdate(PRESERVE)
+        .build();
+      if (entries.replace(command.key(), existing, updated)) {
+        return STORED;
+      }
+    }
+  }
+
+  public StoreResult prepend(PrependCommand command, byte[] data) {
+    final var entries = delegate.asMap();
+    while (true) {
+      final var existing = entries.get(command.key());
+      if (existing == null || data.length > MAX_VALUE_BYTES - existing.data().length) {
+        return NOT_STORED;
+      }
+      final var updated = cacheEntry()
+        .flags(existing.flags())
+        .ttl(existing.ttl())
+        .data(concat(data, existing.data()))
         .casUnique(nextCasUnique())
         .expiryUpdate(PRESERVE)
         .build();

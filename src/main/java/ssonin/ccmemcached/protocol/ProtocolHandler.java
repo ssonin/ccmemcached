@@ -12,6 +12,7 @@ import ssonin.ccmemcached.protocol.command.Command;
 import ssonin.ccmemcached.protocol.command.DecrCommand;
 import ssonin.ccmemcached.protocol.command.DeleteCommand;
 import ssonin.ccmemcached.protocol.command.IncrCommand;
+import ssonin.ccmemcached.protocol.command.PrependCommand;
 import ssonin.ccmemcached.protocol.command.ReplaceCommand;
 import ssonin.ccmemcached.protocol.command.RetrievalCommand;
 import ssonin.ccmemcached.protocol.command.SetCommand;
@@ -93,6 +94,7 @@ public final class ProtocolHandler {
       case DecrCommand decrCommand -> handleDecr(decrCommand);
       case DeleteCommand deleteCommand -> handleDelete(deleteCommand);
       case IncrCommand incrCommand -> handleIncr(incrCommand);
+      case PrependCommand prependCommand -> startStorage(prependCommand);
       case ReplaceCommand replaceCommand -> startStorage(replaceCommand);
       case RetrievalCommand retrievalCommand -> startRetrieval(retrievalCommand);
       case SetCommand setCommand -> startStorage(setCommand);
@@ -173,6 +175,7 @@ public final class ProtocolHandler {
       case AddCommand addCommand -> cacheService.add(addCommand, data) ? "STORED" : "NOT_STORED";
       case AppendCommand appendCommand -> cacheService.append(appendCommand, data).name();
       case CasCommand casCommand -> cacheService.cas(casCommand, data).name();
+      case PrependCommand prependCommand -> cacheService.prepend(prependCommand, data).name();
       case ReplaceCommand replaceCommand -> cacheService.replace(replaceCommand, data) ? "STORED" : "NOT_STORED";
       case SetCommand setCommand -> {
         cacheService.put(setCommand, data);

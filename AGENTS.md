@@ -12,6 +12,8 @@ The current implementation supports these text protocol commands:
 - `cas`
 - `delete`
 - `add`
+- `append`
+- `prepend`
 - `replace`
 - `touch`
 - `incr`
@@ -71,7 +73,7 @@ The project targets Java 25. Java 25 language features such as unnamed pattern v
 ### Command parsing
 
 - `src/main/java/ssonin/ccmemcached/protocol/command/CommandName.java`
-  - Lists implemented command names: `ADD`, `CAS`, `DECR`, `DELETE`, `GET`, `GETS`, `INCR`, `REPLACE`, `SET`, `TOUCH`.
+  - Lists implemented command names: `ADD`, `APPEND`, `CAS`, `DECR`, `DELETE`, `GET`, `GETS`, `INCR`, `PREPEND`, `REPLACE`, `SET`, `TOUCH`.
 
 - `src/main/java/ssonin/ccmemcached/protocol/command/parser/CommandParser.java`
   - Parses the command line into a command record.
@@ -102,13 +104,14 @@ Command-specific parser classes are utility classes with private constructors an
     - large values are treated as absolute Unix timestamps
   - Uses Java unsigned `long` helpers for numeric command parsing and formatting.
   - Numeric commands preserve the existing entry TTL and flags.
-  - Storage commands reset expiry when updating an existing entry.
+  - `append` and `prepend` preserve existing entry TTL and flags while updating data and CAS unique.
+  - Metadata storage commands reset expiry when updating an existing entry.
   - `touch` updates TTL while preserving flags and data.
 
 - `src/main/java/ssonin/ccmemcached/cache/CacheEntry.java`
   - Record for cached item metadata and bytes.
   - Use the `cacheEntry()` builder rather than calling the record constructor directly.
-  - Stores `casUnique`, an opaque 64-bit token exposed by `gets` and intended for future `cas` support.
+  - Stores `casUnique`, an opaque 64-bit token exposed by `gets` and used by `cas`.
   - Includes `ExpiryUpdate` metadata so Caffeine can distinguish updates that reset expiry from updates that preserve the existing expiry duration.
 
 - `src/main/java/ssonin/ccmemcached/cache/CacheEntryExpiry.java`
@@ -153,7 +156,6 @@ Run both suites before calling broad protocol changes complete:
 
 ## Current Gaps and Likely Next Work
 
-- Implement `append` and `prepend` for storage-command breadth.
 - Decide whether wire error formatting should exactly match Memcached.
 - Validate the trailing CRLF segment after storage payloads more strictly.
 - Consider enforcing max key count for multi-key `get`.

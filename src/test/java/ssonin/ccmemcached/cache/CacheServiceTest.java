@@ -31,6 +31,7 @@ import static ssonin.ccmemcached.cache.StoreResult.STORED;
 import static ssonin.ccmemcached.protocol.command.AddCommand.Builder.addCommand;
 import static ssonin.ccmemcached.protocol.command.AppendCommand.Builder.appendCommand;
 import static ssonin.ccmemcached.protocol.command.CasCommand.Builder.casCommand;
+import static ssonin.ccmemcached.protocol.command.PrependCommand.Builder.prependCommand;
 import static ssonin.ccmemcached.protocol.command.ReplaceCommand.Builder.replaceCommand;
 import static ssonin.ccmemcached.protocol.command.SetCommand.Builder.setCommand;
 
@@ -393,6 +394,83 @@ class CacheServiceTest {
 
       // when
       var result = tested.append(command, new byte[]{1});
+
+      // then
+      assertThat(result).isEqualTo(NOT_STORED);
+      assertThat(entries).containsEntry("mykey", existing);
+    }
+  }
+
+  @Nested
+  class PrependOperation {
+
+    @Test
+    void prepends_data_and_preserves_flags_and_ttl_when_key_exists() {
+      // given
+      var entries = new ConcurrentHashMap<String, CacheEntry>();
+      entries.put("mykey", cacheEntry()
+        .flags(7)
+        .ttl(ofSeconds(30))
+        .data("second".getBytes())
+        .casUnique(41L)
+        .build());
+      given(delegate.asMap()).willReturn(entries);
+      var command = prependCommand()
+        .key("mykey")
+        .bytes(5)
+        .build();
+
+      // when
+      var result = tested.prepend(command, "first".getBytes());
+      var updated = entries.get("mykey");
+
+      // then
+      assertThat(result).isEqualTo(STORED);
+      assertThat(updated.flags()).isEqualTo(7);
+      assertThat(updated.ttl()).isEqualTo(ofSeconds(30));
+      assertThat(updated.data()).isEqualTo("firstsecond".getBytes());
+      assertThat(updated.casUnique()).isEqualTo(1L);
+      assertThat(updated.expiryUpdate()).isEqualTo(PRESERVE);
+    }
+
+    @Test
+    void returns_not_stored_when_key_is_absent() {
+      // given
+      var entries = new ConcurrentHashMap<String, CacheEntry>();
+      given(delegate.asMap()).willReturn(entries);
+      var command = prependCommand()
+        .key("missing")
+        .bytes(5)
+        .build();
+
+      // when
+      var result = tested.prepend(command, "value".getBytes());
+
+      // then
+      assertThat(result).isEqualTo(NOT_STORED);
+      assertThat(entries).doesNotContainKey("missing");
+    }
+
+    @Test
+    void returns_not_stored_and_preserves_entry_when_combined_value_exceeds_maximum_size() {
+      // given
+      var existing = cacheEntry()
+        .flags(7)
+        .ttl(ofSeconds(30))
+        .data(new byte[MAX_VALUE_BYTES])
+        .casUnique(41L)
+        .expiryUpdate(RESET)
+        .build();
+      var entries = new ConcurrentHashMap<String, CacheEntry>();
+      entries.put("mykey", existing);
+      given(delegate.asMap()).willReturn(entries);
+      var command = prependCommand()
+        .key("mykey")
+        .bytes(1)
+        .build();
+
+      // when
+      var result = tested.prepend(command, new byte[]{1});
 
       // then
       assertThat(result).isEqualTo(NOT_STORED);
