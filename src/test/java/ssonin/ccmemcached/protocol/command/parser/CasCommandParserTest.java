@@ -69,7 +69,7 @@ class CasCommandParserTest {
 
     // then
     assertThat(thrown).isInstanceOf(ClientError.class)
-      .hasMessage("CLIENT_ERROR: expected at least 6 fields, got 5");
+      .hasMessage("expected at least 6 fields, got 5");
   }
 
   @Test
@@ -82,7 +82,7 @@ class CasCommandParserTest {
 
     // then
     assertThat(thrown).isInstanceOf(ClientError.class)
-      .hasMessage("CLIENT_ERROR: cas unique must be a valid 64-bit integer, got 'invalid'");
+      .hasMessage("cas unique must be a valid 64-bit integer, got 'invalid'");
   }
 
   @Test
@@ -95,7 +95,7 @@ class CasCommandParserTest {
 
     // then
     assertThat(thrown).isInstanceOf(ClientError.class)
-      .hasMessage("CLIENT_ERROR: expected 'noreply', got 'NOREPLY'");
+      .hasMessage("expected 'noreply', got 'NOREPLY'");
   }
 
   @Test
@@ -108,6 +108,6 @@ class CasCommandParserTest {
 
     // then
     assertThat(thrown).isInstanceOf(ClientError.class)
-      .hasMessage("CLIENT_ERROR: expected at most 7 fields, got 8");
+      .hasMessage("expected at most 7 fields, got 8");
   }
 }

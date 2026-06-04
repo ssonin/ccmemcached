@@ -143,7 +143,29 @@ class SetCommandIntegrationTest {
       writeAscii(client, "set broken 0 60\r\n");
 
       // then
-      assertThat(readLine(client)).isEqualTo("CLIENT_ERROR: expected at least 5 fields, got 4\r\n");
+      assertThat(readLine(client)).isEqualTo("CLIENT_ERROR expected at least 5 fields, got 4\r\n");
+
+      // when
+      sendSet(client, "next", 9, 60, "hello");
+      writeAscii(client, "get next\r\n");
+
+      // then
+      assertThat(readUntilEnd(client)).isEqualTo(normalizeCrlf("""
+        VALUE next 9 5
+        hello
+        END
+        """));
+    }
+  }
+
+  @Test
+  void unknown_command_returns_error_and_keeps_connection_usable() throws Exception {
+    try (var client = connect()) {
+      // when
+      writeAscii(client, "unknown\r\n");
+
+      // then
+      assertThat(readLine(client)).isEqualTo("ERROR\r\n");
 
       // when
       sendSet(client, "next", 9, 60, "hello");

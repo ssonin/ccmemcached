@@ -44,7 +44,7 @@ class DeleteCommandParserTest {
 
     // then
     assertThat(thrown).isInstanceOf(ClientError.class)
-      .hasMessage("CLIENT_ERROR: expected at least 2 fields, got 1");
+      .hasMessage("expected at least 2 fields, got 1");
   }
 
   @Test
@@ -57,7 +57,7 @@ class DeleteCommandParserTest {
 
     // then
     assertThat(thrown).isInstanceOf(ClientError.class)
-      .hasMessage("CLIENT_ERROR: expected at most 3 fields, got 4");
+      .hasMessage("expected at most 3 fields, got 4");
   }
 
   @Test
@@ -70,7 +70,7 @@ class DeleteCommandParserTest {
 
     // then
     assertThat(thrown).isInstanceOf(ClientError.class)
-      .hasMessage("CLIENT_ERROR: expected 'noreply', got 'NOREPLY'");
+      .hasMessage("expected 'noreply', got 'NOREPLY'");
   }
 
   @Test
@@ -83,6 +83,6 @@ class DeleteCommandParserTest {
 
     // then
     assertThat(thrown).isInstanceOf(ClientError.class)
-      .hasMessage("CLIENT_ERROR: key contains invalid character 0x7f");
+      .hasMessage("key contains invalid character 0x7f");
   }
 }

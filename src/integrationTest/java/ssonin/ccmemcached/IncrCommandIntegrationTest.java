@@ -119,7 +119,7 @@ class IncrCommandIntegrationTest {
       writeAscii(client, "incr counter 1\r\n");
 
       // then
-      assertThat(readLine(client)).isEqualTo("CLIENT_ERROR: value is not a valid unsigned integer\r\n");
+      assertThat(readLine(client)).isEqualTo("CLIENT_ERROR value is not a valid unsigned integer\r\n");
 
       // when
       sendSet(client, "next", 9, 60, "hello");

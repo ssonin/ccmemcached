@@ -48,9 +48,6 @@ public final class CommandParser {
   public static Command parseCommand(Buffer buffer) {
     requireNonNull(buffer, "buffer must not be null");
     final var parts = buffer.toString().split(" ");
-    if (parts.length < 2) {
-      throw new ClientError("expected at least 2 fields, got %d".formatted(parts.length));
-    }
     final var name = parseName(parts[0]);
     final var parser = parsers.get(name);
     if (parser == null) {

@@ -59,8 +59,15 @@ public final class ProtocolHandler {
       process(buffer);
     } catch (ApplicationError e) {
       resetState();
-      socket.write(e.getMessage() + "\r\n");
+      socket.write(errorResponse(e));
     }
+  }
+
+  private String errorResponse(ApplicationError error) {
+    return switch (error.type()) {
+      case ERROR -> "ERROR\r\n";
+      case CLIENT_ERROR, SERVER_ERROR -> "%s %s\r\n".formatted(error.type(), error.getMessage());
+    };
   }
 
   private void resetState() {

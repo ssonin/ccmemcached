@@ -181,17 +181,17 @@ class CommandParserTest {
 
     // then
     assertThat(thrown).isInstanceOf(ApplicationError.class)
-      .hasMessageStartingWith("CLIENT_ERROR");
+      .hasMessage("expected at least 5 fields, got 1");
   }
 
   @Test
   void throws_on_unknown_command_name() {
     // when
-    var thrown = catchThrowable(() -> parseCommand(buffer("foo mykey 0 900 5")));
+    var thrown = catchThrowable(() -> parseCommand(buffer("foo")));
 
     // then
     assertThat(thrown).isInstanceOf(CommandNameError.class)
-      .hasMessageStartingWith("ERROR");
+      .hasMessage("Nonexistent command name 'foo'");
   }
 
   @Test

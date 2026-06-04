@@ -44,7 +44,7 @@ class TouchCommandParserTest {
 
     // then
     assertThat(thrown).isInstanceOf(ClientError.class)
-      .hasMessage("CLIENT_ERROR: expected at least 3 fields, got 2");
+      .hasMessage("expected at least 3 fields, got 2");
   }
 
   @Test
@@ -57,7 +57,7 @@ class TouchCommandParserTest {
 
     // then
     assertThat(thrown).isInstanceOf(ClientError.class)
-      .hasMessage("CLIENT_ERROR: expected at most 4 fields, got 5");
+      .hasMessage("expected at most 4 fields, got 5");
   }
 
   @Test
@@ -70,7 +70,7 @@ class TouchCommandParserTest {
 
     // then
     assertThat(thrown).isInstanceOf(ClientError.class)
-      .hasMessage("CLIENT_ERROR: exptime must be a valid integer, got 'invalid'");
+      .hasMessage("exptime must be a valid integer, got 'invalid'");
   }
 
   @Test
@@ -83,6 +83,6 @@ class TouchCommandParserTest {
 
     // then
     assertThat(thrown).isInstanceOf(ClientError.class)
-      .hasMessage("CLIENT_ERROR: expected 'noreply', got 'NOREPLY'");
+      .hasMessage("expected 'noreply', got 'NOREPLY'");
   }
 }

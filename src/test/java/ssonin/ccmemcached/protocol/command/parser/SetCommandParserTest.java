@@ -57,7 +57,7 @@ class SetCommandParserTest {
 
     // then
     assertThat(thrown).isInstanceOf(ClientError.class)
-      .hasMessage("CLIENT_ERROR: expected at least 5 fields, got 4");
+      .hasMessage("expected at least 5 fields, got 4");
   }
 
   @Test
@@ -70,7 +70,7 @@ class SetCommandParserTest {
 
     // then
     assertThat(thrown).isInstanceOf(ClientError.class)
-      .hasMessage("CLIENT_ERROR: expected at most 6 fields, got 7");
+      .hasMessage("expected at most 6 fields, got 7");
   }
 
   @Test
@@ -83,7 +83,7 @@ class SetCommandParserTest {
 
     // then
     assertThat(thrown).isInstanceOf(ClientError.class)
-      .hasMessage("CLIENT_ERROR: flags must be a valid integer, got 'abc'");
+      .hasMessage("flags must be a valid integer, got 'abc'");
   }
 
   @Test
@@ -96,7 +96,7 @@ class SetCommandParserTest {
 
     // then
     assertThat(thrown).isInstanceOf(ClientError.class)
-      .hasMessage("CLIENT_ERROR: flags must be between 0 and 65535, got -1");
+      .hasMessage("flags must be between 0 and 65535, got -1");
   }
 
   @Test
@@ -109,7 +109,7 @@ class SetCommandParserTest {
 
     // then
     assertThat(thrown).isInstanceOf(ClientError.class)
-      .hasMessage("CLIENT_ERROR: flags must be between 0 and 65535, got 65536");
+      .hasMessage("flags must be between 0 and 65535, got 65536");
   }
 
   @Test
@@ -122,7 +122,7 @@ class SetCommandParserTest {
 
     // then
     assertThat(thrown).isInstanceOf(ClientError.class)
-      .hasMessage("CLIENT_ERROR: exptime must be a valid integer, got 'abc'");
+      .hasMessage("exptime must be a valid integer, got 'abc'");
   }
 
   @Test
@@ -135,7 +135,7 @@ class SetCommandParserTest {
 
     // then
     assertThat(thrown).isInstanceOf(ClientError.class)
-      .hasMessage("CLIENT_ERROR: bytes must be a valid integer, got 'abc'");
+      .hasMessage("bytes must be a valid integer, got 'abc'");
   }
 
   @Test
@@ -148,7 +148,7 @@ class SetCommandParserTest {
 
     // then
     assertThat(thrown).isInstanceOf(ClientError.class)
-      .hasMessage("CLIENT_ERROR: bytes must be >= 0, got -1");
+      .hasMessage("bytes must be >= 0, got -1");
   }
 
   @Test
@@ -178,6 +178,6 @@ class SetCommandParserTest {
 
     // then
     assertThat(thrown).isInstanceOf(ClientError.class)
-      .hasMessage("CLIENT_ERROR: bytes exceeds maximum size of 1048576");
+      .hasMessage("bytes exceeds maximum size of 1048576");
   }
 }

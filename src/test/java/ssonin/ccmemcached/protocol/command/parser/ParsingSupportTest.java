@@ -36,7 +36,7 @@ class ParsingSupportTest {
 
       // then
       assertThat(thrown).isInstanceOf(ApplicationError.class)
-        .hasMessageStartingWith("CLIENT_ERROR");
+        .hasMessage("key must not be empty");
     }
 
     @Test
@@ -49,7 +49,7 @@ class ParsingSupportTest {
 
       // then
       assertThat(thrown).isInstanceOf(ApplicationError.class)
-        .hasMessageStartingWith("CLIENT_ERROR");
+        .hasMessage("key exceeds maximum length of 250");
     }
 
     @Test
@@ -62,7 +62,7 @@ class ParsingSupportTest {
 
       // then
       assertThat(thrown).isInstanceOf(ApplicationError.class)
-        .hasMessageStartingWith("CLIENT_ERROR");
+        .hasMessage("key contains invalid character 0x1");
     }
 
     @Test
@@ -75,7 +75,7 @@ class ParsingSupportTest {
 
       // then
       assertThat(thrown).isInstanceOf(ApplicationError.class)
-        .hasMessageStartingWith("CLIENT_ERROR");
+        .hasMessage("key contains invalid character 0x7f");
     }
   }
 
@@ -116,7 +116,7 @@ class ParsingSupportTest {
 
       // then
       assertThat(thrown).isInstanceOf(ApplicationError.class)
-        .hasMessageStartingWith("CLIENT_ERROR");
+        .hasMessage("expected 'noreply', got 'NOREPLY'");
     }
 
     @Test

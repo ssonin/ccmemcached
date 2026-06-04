@@ -520,11 +520,27 @@ class ProtocolHandlerTest {
     parserHandler.handle(buffer("\r\n"));
 
     // then
-    then(socket).should().write("CLIENT_ERROR: expected at least 5 fields, got 4\r\n");
+    then(socket).should().write("CLIENT_ERROR expected at least 5 fields, got 4\r\n");
     then(socket).should().write("STORED\r\n");
     then(parser).should(times(3)).delimitedMode("\r\n");
     then(parser).should().fixedSizeMode(5);
     then(cacheService).should().put(eq(expectedCommand), argThat(data -> Arrays.equals(data, "hello".getBytes())));
+  }
+
+  @Test
+  void writes_bare_error_and_recovers_after_unknown_command() {
+    // given
+    given(cacheService.delete("mykey")).willReturn(true);
+
+    // when
+    parserHandler.handle(buffer("unknown"));
+    parserHandler.handle(buffer("delete mykey"));
+
+    // then
+    then(socket).should().write("ERROR\r\n");
+    then(cacheService).should().delete("mykey");
+    then(socket).should().write("DELETED\r\n");
+    then(parser).should(times(1)).delimitedMode("\r\n");
   }
 
   @Test
@@ -545,7 +561,7 @@ class ProtocolHandlerTest {
     parserHandler.handle(buffer("\r\n"));
 
     // then
-    then(socket).should().write("CLIENT_ERROR: expected at least 5 fields, got 4\r\n");
+    then(socket).should().write("CLIENT_ERROR expected at least 5 fields, got 4\r\n");
     then(socket).should().write("STORED\r\n");
     then(parser).should(times(3)).delimitedMode("\r\n");
     then(parser).should().fixedSizeMode(5);
@@ -570,7 +586,7 @@ class ProtocolHandlerTest {
     parserHandler.handle(buffer("\r\n"));
 
     // then
-    then(socket).should().write("CLIENT_ERROR: expected at least 5 fields, got 4\r\n");
+    then(socket).should().write("CLIENT_ERROR expected at least 5 fields, got 4\r\n");
     then(socket).should().write("STORED\r\n");
     then(parser).should(times(3)).delimitedMode("\r\n");
     then(parser).should().fixedSizeMode(5);
@@ -587,7 +603,7 @@ class ProtocolHandlerTest {
     parserHandler.handle(buffer("delete mykey"));
 
     // then
-    then(socket).should().write("CLIENT_ERROR: bytes exceeds maximum size of 1048576\r\n");
+    then(socket).should().write("CLIENT_ERROR bytes exceeds maximum size of 1048576\r\n");
     then(cacheService).should().delete("mykey");
     then(socket).should().write("DELETED\r\n");
     then(parser).should(times(1)).delimitedMode("\r\n");
@@ -619,7 +635,7 @@ class ProtocolHandlerTest {
     parserHandler.handle(buffer("delete mykey"));
 
     // then
-    then(socket).should().write("CLIENT_ERROR: command line exceeds maximum length of 8192 bytes\r\n");
+    then(socket).should().write("CLIENT_ERROR command line exceeds maximum length of 8192 bytes\r\n");
     then(cacheService).should().delete("mykey");
     then(socket).should().write("DELETED\r\n");
     then(parser).should(times(1)).delimitedMode("\r\n");
@@ -891,7 +907,7 @@ class ProtocolHandlerTest {
     parserHandler.handle(buffer("delete mykey"));
 
     // then
-    then(socket).should().write("CLIENT_ERROR: value is not a valid unsigned integer\r\n");
+    then(socket).should().write("CLIENT_ERROR value is not a valid unsigned integer\r\n");
     then(cacheService).should().delete("mykey");
     then(socket).should().write("DELETED\r\n");
   }

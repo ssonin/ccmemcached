@@ -44,7 +44,7 @@ class IncrCommandParserTest {
 
     // then
     assertThat(thrown).isInstanceOf(ClientError.class)
-      .hasMessage("CLIENT_ERROR: expected at least 3 fields, got 2");
+      .hasMessage("expected at least 3 fields, got 2");
   }
 
   @Test
@@ -57,7 +57,7 @@ class IncrCommandParserTest {
 
     // then
     assertThat(thrown).isInstanceOf(ClientError.class)
-      .hasMessage("CLIENT_ERROR: expected at most 4 fields, got 5");
+      .hasMessage("expected at most 4 fields, got 5");
   }
 
   @Test
@@ -70,7 +70,7 @@ class IncrCommandParserTest {
 
     // then
     assertThat(thrown).isInstanceOf(ClientError.class)
-      .hasMessage("CLIENT_ERROR: delta must be a valid 64-bit integer, got 'invalid'");
+      .hasMessage("delta must be a valid 64-bit integer, got 'invalid'");
   }
 
   @Test
@@ -83,7 +83,7 @@ class IncrCommandParserTest {
 
     // then
     assertThat(thrown).isInstanceOf(ClientError.class)
-      .hasMessage("CLIENT_ERROR: delta must be a valid 64-bit integer, got '-1'");
+      .hasMessage("delta must be a valid 64-bit integer, got '-1'");
   }
 
   @Test
@@ -96,6 +96,6 @@ class IncrCommandParserTest {
 
     // then
     assertThat(thrown).isInstanceOf(ClientError.class)
-      .hasMessage("CLIENT_ERROR: expected 'noreply', got 'NOREPLY'");
+      .hasMessage("expected 'noreply', got 'NOREPLY'");
   }
 }

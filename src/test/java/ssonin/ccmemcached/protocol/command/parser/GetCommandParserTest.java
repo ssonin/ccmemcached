@@ -34,6 +34,6 @@ class GetCommandParserTest {
 
     // then
     assertThat(thrown).isInstanceOf(ClientError.class)
-      .hasMessage("CLIENT_ERROR: expected at least 2 fields, got 1");
+      .hasMessage("expected at least 2 fields, got 1");
   }
 }

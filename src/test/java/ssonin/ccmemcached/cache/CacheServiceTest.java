@@ -662,7 +662,7 @@ class CacheServiceTest {
       var thrown = catchThrowable(() -> tested.increment(new IncrCommand("mykey", 1L, false)));
 
       // then
-      assertThat(thrown).hasMessage("CLIENT_ERROR: value is not a valid unsigned integer");
+      assertThat(thrown).hasMessage("value is not a valid unsigned integer");
     }
   }
 

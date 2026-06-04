@@ -34,7 +34,7 @@ class GetsCommandParserTest {
 
     // then
     assertThat(thrown).isInstanceOf(ClientError.class)
-      .hasMessage("CLIENT_ERROR: expected at least 2 fields, got 1");
+      .hasMessage("expected at least 2 fields, got 1");
   }
 
   @Test
@@ -47,6 +47,6 @@ class GetsCommandParserTest {
 
     // then
     assertThat(thrown).isInstanceOf(ClientError.class)
-      .hasMessageStartingWith("CLIENT_ERROR");
+      .hasMessage("key contains invalid character 0x1");
   }
 }

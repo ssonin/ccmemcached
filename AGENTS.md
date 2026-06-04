@@ -126,13 +126,13 @@ Command-specific parser classes are utility classes with private constructors an
 
 - `src/main/java/ssonin/ccmemcached/protocol/error/CommandNameError.java`
   - Unknown command name.
-  - Formats as `ERROR: ...`.
+  - Formats as `ERROR` on the wire.
 
 - `src/main/java/ssonin/ccmemcached/protocol/error/ClientError.java`
   - Invalid client input.
-  - Formats as `CLIENT_ERROR: ...`.
+  - Formats as `CLIENT_ERROR <message>` on the wire.
 
-Note: the current wire formatting includes a colon in `ApplicationError.getMessage()`. Real Memcached responses are typically `ERROR\r\n` or `CLIENT_ERROR <msg>\r\n`, so verify protocol compatibility before changing or extending error handling.
+`ApplicationError` keeps its diagnostic message separate from its error type. `ProtocolHandler` formats errors at the wire boundary.
 
 ## Testing
 
@@ -156,7 +156,6 @@ Run both suites before calling broad protocol changes complete:
 
 ## Current Gaps and Likely Next Work
 
-- Decide whether wire error formatting should exactly match Memcached.
 - Validate the trailing CRLF segment after storage payloads more strictly.
 - Consider enforcing max key count for multi-key `get`.
 - Consider enforcing command-line length while bytes are accumulating, not only after `RecordParser` emits a full line.
