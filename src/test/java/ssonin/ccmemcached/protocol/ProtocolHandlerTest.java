@@ -128,12 +128,30 @@ class ProtocolHandlerTest {
     // when
     parserHandler.handle(buffer("set mykey 42 900 5"));
     parserHandler.handle(buffer("value"));
-    parserHandler.handle(buffer("\r\n"));
+    parserHandler.handle(buffer());
 
     // then
     then(cacheService).should().put(eq(expectedCommand), argThat(data -> Arrays.equals(data, "value".getBytes())));
     then(parser).should(times(2)).delimitedMode("\r\n");
     then(socket).should().write("STORED\r\n");
+  }
+
+  @Test
+  void rejects_bytes_before_trailing_crlf_without_storing_value_and_recovers() {
+    // given
+    given(cacheService.delete("next")).willReturn(true);
+
+    // when
+    parserHandler.handle(buffer("set mykey 42 900 5"));
+    parserHandler.handle(buffer("value"));
+    parserHandler.handle(buffer("extra"));
+    parserHandler.handle(buffer("delete next"));
+
+    // then
+    then(cacheService).should(never()).put(any(), any(byte[].class));
+    then(socket).should().write("CLIENT_ERROR expected CRLF after data block\r\n");
+    then(cacheService).should().delete("next");
+    then(socket).should().write("DELETED\r\n");
   }
 
   @Test
@@ -150,7 +168,7 @@ class ProtocolHandlerTest {
     // when
     parserHandler.handle(buffer("set mykey 7 900 5 noreply"));
     parserHandler.handle(buffer("value"));
-    parserHandler.handle(buffer("\r\n"));
+    parserHandler.handle(buffer());
 
     // then
     then(cacheService).should().put(eq(expectedCommand), argThat(data -> Arrays.equals(data, "value".getBytes())));
@@ -171,7 +189,7 @@ class ProtocolHandlerTest {
     // when
     parserHandler.handle(buffer("add mykey 42 900 5"));
     parserHandler.handle(buffer("value"));
-    parserHandler.handle(buffer("\r\n"));
+    parserHandler.handle(buffer());
 
     // then
     then(cacheService).should().add(eq(expectedCommand), argThat(data -> Arrays.equals(data, "value".getBytes())));
@@ -193,7 +211,7 @@ class ProtocolHandlerTest {
     // when
     parserHandler.handle(buffer("add mykey 42 900 5"));
     parserHandler.handle(buffer("value"));
-    parserHandler.handle(buffer("\r\n"));
+    parserHandler.handle(buffer());
 
     // then
     then(cacheService).should().add(eq(expectedCommand), argThat(data -> Arrays.equals(data, "value".getBytes())));
@@ -215,7 +233,7 @@ class ProtocolHandlerTest {
     // when
     parserHandler.handle(buffer("add mykey 7 900 5 noreply"));
     parserHandler.handle(buffer("value"));
-    parserHandler.handle(buffer("\r\n"));
+    parserHandler.handle(buffer());
 
     // then
     then(cacheService).should().add(eq(expectedCommand), argThat(data -> Arrays.equals(data, "value".getBytes())));
@@ -234,7 +252,7 @@ class ProtocolHandlerTest {
     // when
     parserHandler.handle(buffer("append mykey 42 900 5"));
     parserHandler.handle(buffer("value"));
-    parserHandler.handle(buffer("\r\n"));
+    parserHandler.handle(buffer());
 
     // then
     then(cacheService).should().append(eq(expectedCommand), argThat(data -> Arrays.equals(data, "value".getBytes())));
@@ -254,7 +272,7 @@ class ProtocolHandlerTest {
     // when
     parserHandler.handle(buffer("append mykey 42 900 5"));
     parserHandler.handle(buffer("value"));
-    parserHandler.handle(buffer("\r\n"));
+    parserHandler.handle(buffer());
 
     // then
     then(cacheService).should().append(eq(expectedCommand), argThat(data -> Arrays.equals(data, "value".getBytes())));
@@ -274,7 +292,7 @@ class ProtocolHandlerTest {
     // when
     parserHandler.handle(buffer("append mykey 7 900 5 noreply"));
     parserHandler.handle(buffer("value"));
-    parserHandler.handle(buffer("\r\n"));
+    parserHandler.handle(buffer());
 
     // then
     then(cacheService).should().append(eq(expectedCommand), argThat(data -> Arrays.equals(data, "value".getBytes())));
@@ -293,7 +311,7 @@ class ProtocolHandlerTest {
     // when
     parserHandler.handle(buffer("prepend mykey 42 900 5"));
     parserHandler.handle(buffer("value"));
-    parserHandler.handle(buffer("\r\n"));
+    parserHandler.handle(buffer());
 
     // then
     then(cacheService).should().prepend(eq(expectedCommand), argThat(data -> Arrays.equals(data, "value".getBytes())));
@@ -313,7 +331,7 @@ class ProtocolHandlerTest {
     // when
     parserHandler.handle(buffer("prepend mykey 42 900 5"));
     parserHandler.handle(buffer("value"));
-    parserHandler.handle(buffer("\r\n"));
+    parserHandler.handle(buffer());
 
     // then
     then(cacheService).should().prepend(eq(expectedCommand), argThat(data -> Arrays.equals(data, "value".getBytes())));
@@ -333,7 +351,7 @@ class ProtocolHandlerTest {
     // when
     parserHandler.handle(buffer("prepend mykey 7 900 5 noreply"));
     parserHandler.handle(buffer("value"));
-    parserHandler.handle(buffer("\r\n"));
+    parserHandler.handle(buffer());
 
     // then
     then(cacheService).should().prepend(eq(expectedCommand), argThat(data -> Arrays.equals(data, "value".getBytes())));
@@ -354,7 +372,7 @@ class ProtocolHandlerTest {
     // when
     parserHandler.handle(buffer("replace mykey 42 900 5"));
     parserHandler.handle(buffer("value"));
-    parserHandler.handle(buffer("\r\n"));
+    parserHandler.handle(buffer());
 
     // then
     then(cacheService).should().replace(eq(expectedCommand), argThat(data -> Arrays.equals(data, "value".getBytes())));
@@ -376,7 +394,7 @@ class ProtocolHandlerTest {
     // when
     parserHandler.handle(buffer("replace mykey 42 900 5"));
     parserHandler.handle(buffer("value"));
-    parserHandler.handle(buffer("\r\n"));
+    parserHandler.handle(buffer());
 
     // then
     then(cacheService).should().replace(eq(expectedCommand), argThat(data -> Arrays.equals(data, "value".getBytes())));
@@ -398,7 +416,7 @@ class ProtocolHandlerTest {
     // when
     parserHandler.handle(buffer("replace mykey 7 900 5 noreply"));
     parserHandler.handle(buffer("value"));
-    parserHandler.handle(buffer("\r\n"));
+    parserHandler.handle(buffer());
 
     // then
     then(cacheService).should().replace(eq(expectedCommand), argThat(data -> Arrays.equals(data, "value".getBytes())));
@@ -420,7 +438,7 @@ class ProtocolHandlerTest {
     // when
     parserHandler.handle(buffer("cas mykey 42 900 5 1"));
     parserHandler.handle(buffer("value"));
-    parserHandler.handle(buffer("\r\n"));
+    parserHandler.handle(buffer());
 
     // then
     then(cacheService).should().cas(eq(expectedCommand), argThat(data -> Arrays.equals(data, "value".getBytes())));
@@ -443,7 +461,7 @@ class ProtocolHandlerTest {
     // when
     parserHandler.handle(buffer("cas mykey 42 900 5 1"));
     parserHandler.handle(buffer("value"));
-    parserHandler.handle(buffer("\r\n"));
+    parserHandler.handle(buffer());
 
     // then
     then(cacheService).should().cas(eq(expectedCommand), argThat(data -> Arrays.equals(data, "value".getBytes())));
@@ -465,7 +483,7 @@ class ProtocolHandlerTest {
     // when
     parserHandler.handle(buffer("cas mykey 42 900 5 1"));
     parserHandler.handle(buffer("value"));
-    parserHandler.handle(buffer("\r\n"));
+    parserHandler.handle(buffer());
 
     // then
     then(cacheService).should().cas(eq(expectedCommand), argThat(data -> Arrays.equals(data, "value".getBytes())));
@@ -488,7 +506,7 @@ class ProtocolHandlerTest {
     // when
     parserHandler.handle(buffer("cas mykey 7 900 5 1 noreply"));
     parserHandler.handle(buffer("value"));
-    parserHandler.handle(buffer("\r\n"));
+    parserHandler.handle(buffer());
 
     // then
     then(cacheService).should().cas(eq(expectedCommand), argThat(data -> Arrays.equals(data, "value".getBytes())));
@@ -518,7 +536,7 @@ class ProtocolHandlerTest {
     parserHandler.handle(buffer("set mykey 0 900"));
     parserHandler.handle(buffer("set next 9 60 5"));
     parserHandler.handle(buffer("hello"));
-    parserHandler.handle(buffer("\r\n"));
+    parserHandler.handle(buffer());
 
     // then
     then(socket).should().write("CLIENT_ERROR expected at least 5 fields, got 4\r\n");
@@ -559,7 +577,7 @@ class ProtocolHandlerTest {
     parserHandler.handle(buffer("add mykey 0 900"));
     parserHandler.handle(buffer("add next 9 60 5"));
     parserHandler.handle(buffer("hello"));
-    parserHandler.handle(buffer("\r\n"));
+    parserHandler.handle(buffer());
 
     // then
     then(socket).should().write("CLIENT_ERROR expected at least 5 fields, got 4\r\n");
@@ -584,7 +602,7 @@ class ProtocolHandlerTest {
     parserHandler.handle(buffer("replace mykey 0 900"));
     parserHandler.handle(buffer("replace next 9 60 5"));
     parserHandler.handle(buffer("hello"));
-    parserHandler.handle(buffer("\r\n"));
+    parserHandler.handle(buffer());
 
     // then
     then(socket).should().write("CLIENT_ERROR expected at least 5 fields, got 4\r\n");
@@ -941,7 +959,7 @@ class ProtocolHandlerTest {
     // when
     parserHandler.handle(buffer("set mykey 7 60 5"));
     parserHandler.handle(buffer("value"));
-    parserHandler.handle(buffer("\r\n"));
+    parserHandler.handle(buffer());
 
     // then
     then(socket).should().end(buffer("SERVER_ERROR internal server error\r\n"));

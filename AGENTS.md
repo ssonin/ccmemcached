@@ -65,7 +65,8 @@ The project targets Java 25. Java 25 language features such as unnamed pattern v
     - `AWAITING_TRAILING_CRLF`
   - Command lines are parsed in CRLF-delimited mode.
   - Storage payloads are read in fixed-size mode using the parsed `bytes` field.
-  - After the trailing CRLF is consumed, storage commands are applied and the parser resets to command mode.
+  - Storage commands are applied only when no bytes appear between the declared payload and its trailing CRLF.
+  - Extra bytes before the trailing CRLF produce a `CLIENT_ERROR`, do not mutate the cache, and reset the parser to command mode.
   - `ApplicationError` subclasses are translated to protocol error responses and the connection stays open.
 
 `ProtocolHandler` currently uses a compact switch-based dispatcher. This is acceptable for the current command count; a command-handler abstraction can be introduced later if dispatch or response formatting grows.
@@ -158,7 +159,6 @@ Run both suites before calling broad protocol changes complete:
 
 ## Current Gaps and Likely Next Work
 
-- Validate the trailing CRLF segment after storage payloads more strictly.
 - Consider enforcing max key count for multi-key `get`.
 - Consider enforcing command-line length while bytes are accumulating, not only after `RecordParser` emits a full line.
 - Consider extracting response formatting or command handlers if the switch-based dispatcher starts to grow too much.

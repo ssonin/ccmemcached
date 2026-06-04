@@ -93,7 +93,7 @@ public final class ProtocolHandler {
     switch (state) {
       case AWAITING_COMMAND -> handleCommandLine(buffer);
       case AWAITING_DATA -> handleStorageData(buffer);
-      case AWAITING_TRAILING_CRLF -> completeStorageWrite();
+      case AWAITING_TRAILING_CRLF -> completeStorageWrite(buffer);
     }
   }
 
@@ -189,7 +189,10 @@ public final class ProtocolHandler {
     parser.delimitedMode("\r\n");
   }
 
-  private void completeStorageWrite() {
+  private void completeStorageWrite(Buffer trailingData) {
+    if (trailingData.length() != 0) {
+      throw new ClientError("expected CRLF after data block");
+    }
     final var response = switch (pendingStorageCommand) {
       case AddCommand addCommand -> cacheService.add(addCommand, data) ? "STORED" : "NOT_STORED";
       case AppendCommand appendCommand -> cacheService.append(appendCommand, data).name();

@@ -159,6 +159,23 @@ class SetCommandIntegrationTest {
   }
 
   @Test
+  void set_rejects_bytes_before_trailing_crlf_without_storing_value() throws Exception {
+    try (var client = connect()) {
+      // when
+      writeAscii(client, "set mykey 7 60 5\r\nvalueextra\r\n");
+
+      // then
+      assertThat(readLine(client)).isEqualTo("CLIENT_ERROR expected CRLF after data block\r\n");
+
+      // when
+      writeAscii(client, "get mykey\r\n");
+
+      // then
+      assertThat(readUntilEnd(client)).isEqualTo("END\r\n");
+    }
+  }
+
+  @Test
   void unknown_command_returns_error_and_keeps_connection_usable() throws Exception {
     try (var client = connect()) {
       // when
