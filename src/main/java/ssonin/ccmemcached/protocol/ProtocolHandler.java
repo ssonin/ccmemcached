@@ -25,6 +25,7 @@ import ssonin.ccmemcached.protocol.error.ErrorType;
 
 import static io.vertx.core.buffer.Buffer.buffer;
 import static org.slf4j.LoggerFactory.getLogger;
+import static ssonin.ccmemcached.protocol.MemcachedLimits.MAX_COMMAND_LINE_BYTES;
 import static ssonin.ccmemcached.protocol.ProtocolHandler.State.AWAITING_COMMAND;
 import static ssonin.ccmemcached.protocol.ProtocolHandler.State.AWAITING_DATA;
 import static ssonin.ccmemcached.protocol.ProtocolHandler.State.AWAITING_TRAILING_CRLF;
@@ -33,7 +34,6 @@ import static ssonin.ccmemcached.protocol.error.ErrorType.SERVER_ERROR;
 
 public final class ProtocolHandler {
 
-  private static final int MAX_COMMAND_LINE_BYTES = 8 * 1024;
   private static final Logger log = getLogger(ProtocolHandler.class);
 
   private final CacheService cacheService;

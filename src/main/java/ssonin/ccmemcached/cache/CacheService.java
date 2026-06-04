@@ -33,12 +33,12 @@ import static ssonin.ccmemcached.cache.StoreResult.EXISTS;
 import static ssonin.ccmemcached.cache.StoreResult.NOT_FOUND;
 import static ssonin.ccmemcached.cache.StoreResult.NOT_STORED;
 import static ssonin.ccmemcached.cache.StoreResult.STORED;
+import static ssonin.ccmemcached.protocol.MemcachedLimits.MAX_VALUE_BYTES;
 
 public final class CacheService {
 
   private static final Duration NEVER_EXPIRES = Duration.ofDays(365L * 100);
   private static final long MAX_RELATIVE_EXPTIME = 2_592_000L;
-  private static final int MAX_VALUE_BYTES = 1024 * 1024;
 
   private final Cache<String, CacheEntry> delegate;
   private final InstantSource clock;

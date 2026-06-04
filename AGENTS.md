@@ -73,6 +73,12 @@ The project targets Java 25. Java 25 language features such as unnamed pattern v
 
 ### Command parsing
 
+- `src/main/java/ssonin/ccmemcached/protocol/MemcachedLimits.java`
+  - Owns server-wide protocol and resource limits:
+    - maximum value bytes
+    - maximum command-line bytes
+    - maximum keys for multi-key retrieval
+
 - `src/main/java/ssonin/ccmemcached/protocol/command/CommandName.java`
   - Lists implemented command names: `ADD`, `APPEND`, `CAS`, `DECR`, `DELETE`, `GET`, `GETS`, `INCR`, `PREPEND`, `REPLACE`, `SET`, `TOUCH`.
 

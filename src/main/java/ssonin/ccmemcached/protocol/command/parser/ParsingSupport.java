@@ -9,12 +9,12 @@ import java.util.List;
 import static java.lang.Long.parseUnsignedLong;
 import static java.util.Collections.unmodifiableList;
 import static org.slf4j.LoggerFactory.getLogger;
+import static ssonin.ccmemcached.protocol.MemcachedLimits.MAX_GET_KEYS;
+import static ssonin.ccmemcached.protocol.MemcachedLimits.MAX_VALUE_BYTES;
 
 final class ParsingSupport {
 
   private static final int MAX_KEY_LENGTH = 250;
-  private static final int MAX_GET_KEYS = 100;
-  private static final int MAX_VALUE_BYTES = 1024 * 1024;
 
   private static final Logger log = getLogger(ParsingSupport.class);
 
