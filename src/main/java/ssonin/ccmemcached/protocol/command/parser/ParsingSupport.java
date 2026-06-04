@@ -13,6 +13,7 @@ import static org.slf4j.LoggerFactory.getLogger;
 final class ParsingSupport {
 
   private static final int MAX_KEY_LENGTH = 250;
+  private static final int MAX_GET_KEYS = 100;
   private static final int MAX_VALUE_BYTES = 1024 * 1024;
 
   private static final Logger log = getLogger(ParsingSupport.class);
@@ -41,7 +42,11 @@ final class ParsingSupport {
     if (parts.length < 2) {
       throw new ClientError("expected at least 2 fields, got %d".formatted(parts.length));
     }
-    final List<String> keys = new ArrayList<>(parts.length - 1);
+    final var keyCount = parts.length - 1;
+    if (keyCount > MAX_GET_KEYS) {
+      throw new ClientError("key count exceeds maximum of %d, got %d".formatted(MAX_GET_KEYS, keyCount));
+    }
+    final List<String> keys = new ArrayList<>(keyCount);
     for (var i = 1; i < parts.length; i++) {
       keys.add(parseKey(parts[i]));
     }

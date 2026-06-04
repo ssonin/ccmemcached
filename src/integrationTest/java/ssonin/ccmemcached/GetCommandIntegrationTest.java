@@ -15,6 +15,7 @@ import java.io.IOException;
 import java.net.Socket;
 import java.time.Instant;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.IntStream;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -181,8 +182,32 @@ class GetCommandIntegrationTest {
     }
   }
 
+  @Test
+  void get_rejects_key_count_above_maximum_and_keeps_connection_usable() throws Exception {
+    try (var client = connect()) {
+      // when
+      writeAscii(client, commandWithKeyCount(101));
+
+      // then
+      assertThat(readLine(client)).isEqualTo("CLIENT_ERROR key count exceeds maximum of 100, got 101\r\n");
+
+      // when
+      writeAscii(client, "get missing\r\n");
+
+      // then
+      assertThat(readUntilEnd(client)).isEqualTo("END\r\n");
+    }
+  }
+
   private Socket connect() throws IOException {
     return new Socket("127.0.0.1", port);
+  }
+
+  private static String commandWithKeyCount(int keyCount) {
+    var keys = IntStream.rangeClosed(1, keyCount)
+      .mapToObj(i -> "key" + i)
+      .toList();
+    return "get %s\r\n".formatted(String.join(" ", keys));
   }
 
   private void sendSet(Socket client, String key, int flags, int exptime, byte[] value) throws Exception {

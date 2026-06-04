@@ -89,6 +89,7 @@ The project targets Java 25. Java 25 language features such as unnamed pattern v
     - numeric `exptime`
     - non-negative `bytes`
     - max value size
+    - maximum of 100 keys for multi-key `get` and `gets`
     - unsigned 64-bit numeric deltas
     - optional `noreply`
 
@@ -161,6 +162,5 @@ Run both suites before calling broad protocol changes complete:
 
 ## Current Gaps and Likely Next Work
 
-- Consider enforcing max key count for multi-key `get`.
 - Consider enforcing command-line length while bytes are accumulating, not only after `RecordParser` emits a full line.
 - Consider extracting response formatting or command handlers if the switch-based dispatcher starts to grow too much.
