@@ -26,6 +26,7 @@ import ssonin.ccmemcached.protocol.error.ErrorType;
 import static io.vertx.core.buffer.Buffer.buffer;
 import static org.slf4j.LoggerFactory.getLogger;
 import static ssonin.ccmemcached.protocol.MemcachedLimits.MAX_COMMAND_LINE_BYTES;
+import static ssonin.ccmemcached.protocol.MemcachedLimits.MAX_VALUE_BYTES;
 import static ssonin.ccmemcached.protocol.ProtocolHandler.State.AWAITING_COMMAND;
 import static ssonin.ccmemcached.protocol.ProtocolHandler.State.AWAITING_DATA;
 import static ssonin.ccmemcached.protocol.ProtocolHandler.State.AWAITING_TRAILING_CRLF;
@@ -52,6 +53,8 @@ public final class ProtocolHandler {
     this.cacheService = cacheService;
     this.socket = socket;
     this.parser = parser;
+    this.parser.maxRecordSize(MAX_COMMAND_LINE_BYTES);
+    this.parser.exceptionHandler(this::handleParserError);
     this.parser.handler(this::handle);
   }
 
@@ -71,6 +74,11 @@ public final class ProtocolHandler {
     }
   }
 
+  private void handleParserError(Throwable error) {
+    log.warn("Closing client connection after record parser failure", error);
+    socket.end();
+  }
+
   private String errorResponse(ApplicationError error) {
     return errorResponse(error.type(), error.getMessage());
   }
@@ -86,7 +94,7 @@ public final class ProtocolHandler {
     state = AWAITING_COMMAND;
     pendingStorageCommand = null;
     data = null;
-    parser.delimitedMode("\r\n");
+    delimitedMode();
   }
 
   private void process(Buffer buffer) {
@@ -180,12 +188,18 @@ public final class ProtocolHandler {
   private void startStorage(StorageCommand command) {
     pendingStorageCommand = command;
     state = AWAITING_DATA;
+    parser.maxRecordSize(MAX_VALUE_BYTES);
     parser.fixedSizeMode(command.bytes());
   }
 
   private void handleStorageData(Buffer buffer) {
     data = buffer.getBytes();
     state = AWAITING_TRAILING_CRLF;
+    delimitedMode();
+  }
+
+  private void delimitedMode() {
+    parser.maxRecordSize(MAX_COMMAND_LINE_BYTES);
     parser.delimitedMode("\r\n");
   }
 

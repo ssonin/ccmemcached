@@ -51,6 +51,14 @@ class ProtocolHandlerTest {
   private final ProtocolHandler tested = new ProtocolHandler(cacheService, socket, parser);
 
   private Handler<Buffer> parserHandler;
+  private Handler<Throwable> parserExceptionHandler;
+
+  @Test
+  void configures_parser_with_command_line_limit_and_exception_handler() {
+    // then
+    then(parser).should().maxRecordSize(MAX_COMMAND_LINE_BYTES);
+    then(parser).should().exceptionHandler(any());
+  }
 
   @Test
   void start_registers_parser_as_socket_handler() {
@@ -67,7 +75,29 @@ class ProtocolHandlerTest {
     parserHandler.handle(buffer("set mykey 42 900 5"));
 
     // then
+    then(parser).should().maxRecordSize(MAX_VALUE_BYTES);
     then(parser).should().fixedSizeMode(5);
+  }
+
+  @Test
+  void restores_command_line_limit_when_storage_data_is_received() {
+    // when
+    parserHandler.handle(buffer("set mykey 42 900 5"));
+    parserHandler.handle(buffer("value"));
+
+    // then
+    then(parser).should(times(2)).maxRecordSize(MAX_COMMAND_LINE_BYTES);
+    then(parser).should().delimitedMode("\r\n");
+  }
+
+  @Test
+  void closes_connection_without_response_after_parser_failure() {
+    // when
+    parserExceptionHandler.handle(new IllegalStateException("The current record is too long"));
+
+    // then
+    then(socket).should().end();
+    then(socket).shouldHaveNoMoreInteractions();
   }
 
   @Test
@@ -969,8 +999,12 @@ class ProtocolHandlerTest {
   private RecordParser parser() {
     var parser = Mockito.mock(RecordParser.class);
     willAnswer(invocation -> {
+      parserExceptionHandler = invocation.getArgument(0);
+      return parser;
+    }).given(parser).exceptionHandler(any());
+    willAnswer(invocation -> {
       parserHandler = invocation.getArgument(0);
-      return null;
+      return parser;
     }).given(parser).handler(any());
     return parser;
   }

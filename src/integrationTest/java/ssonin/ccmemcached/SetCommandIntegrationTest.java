@@ -137,6 +137,27 @@ class SetCommandIntegrationTest {
   }
 
   @Test
+  void set_accepts_incomplete_payload_larger_than_command_line_limit() throws Exception {
+    try (var client = connect()) {
+      // when
+      writeAscii(client, "set large 0 60 8194\r\n");
+      writeAscii(client, "a".repeat(8193));
+
+      // then
+      client.setSoTimeout(200);
+      assertThatThrownBy(() -> client.getInputStream().read())
+        .isInstanceOf(SocketTimeoutException.class);
+
+      // when
+      client.setSoTimeout(2000);
+      writeAscii(client, "b\r\n");
+
+      // then
+      assertThat(readLine(client)).isEqualTo("STORED\r\n");
+    }
+  }
+
+  @Test
   void set_rejects_invalid_command_and_keeps_connection_usable() throws Exception {
     try (var client = connect()) {
       // when
