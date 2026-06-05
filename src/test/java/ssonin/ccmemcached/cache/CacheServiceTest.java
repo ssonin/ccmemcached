@@ -60,9 +60,10 @@ class CacheServiceTest {
       var data = "value".getBytes();
 
       // when
-      tested.put(command, data);
+      var result = tested.put(command, data);
 
       // then
+      assertThat(result).isEqualTo(STORED);
       then(delegate).should().put("mykey", cacheEntry()
         .flags(42)
         .ttl(ofDays(365L * 100))
@@ -84,9 +85,10 @@ class CacheServiceTest {
       var data = "value".getBytes();
 
       // when
-      tested.put(command, data);
+      var result = tested.put(command, data);
 
       // then
+      assertThat(result).isEqualTo(STORED);
       then(delegate).should().put("mykey", cacheEntry()
         .flags(7)
         .ttl(ofSeconds(900))
@@ -109,9 +111,10 @@ class CacheServiceTest {
       var data = "value".getBytes();
 
       // when
-      tested.put(command, data);
+      var result = tested.put(command, data);
 
       // then
+      assertThat(result).isEqualTo(STORED);
       then(delegate).should().put("mykey", cacheEntry()
         .flags(9)
         .ttl(ofSeconds(3600))
@@ -139,10 +142,10 @@ class CacheServiceTest {
       var data = "value".getBytes();
 
       // when
-      var stored = tested.add(command, data);
+      var result = tested.add(command, data);
 
       // then
-      assertThat(stored).isTrue();
+      assertThat(result).isEqualTo(STORED);
       assertThat(entries).containsEntry("mykey", cacheEntry()
         .flags(7)
         .ttl(ofSeconds(900))
@@ -153,7 +156,7 @@ class CacheServiceTest {
     }
 
     @Test
-    void returns_false_and_preserves_existing_entry_when_key_exists() {
+    void returns_not_stored_and_preserves_existing_entry_when_key_exists() {
       // given
       var existing = cacheEntry()
         .flags(1)
@@ -172,10 +175,10 @@ class CacheServiceTest {
         .build();
 
       // when
-      var stored = tested.add(command, "second".getBytes());
+      var result = tested.add(command, "second".getBytes());
 
       // then
-      assertThat(stored).isFalse();
+      assertThat(result).isEqualTo(NOT_STORED);
       assertThat(entries).containsEntry("mykey", existing);
     }
   }
@@ -202,10 +205,10 @@ class CacheServiceTest {
       var data = "second".getBytes();
 
       // when
-      var stored = tested.replace(command, data);
+      var result = tested.replace(command, data);
 
       // then
-      assertThat(stored).isTrue();
+      assertThat(result).isEqualTo(STORED);
       assertThat(entries).containsEntry("mykey", cacheEntry()
         .flags(7)
         .ttl(ofSeconds(900))
@@ -216,7 +219,7 @@ class CacheServiceTest {
     }
 
     @Test
-    void returns_false_when_key_is_absent() {
+    void returns_not_stored_when_key_is_absent() {
       // given
       var entries = new ConcurrentHashMap<String, CacheEntry>();
       given(delegate.asMap()).willReturn(entries);
@@ -228,10 +231,10 @@ class CacheServiceTest {
         .build();
 
       // when
-      var stored = tested.replace(command, "second".getBytes());
+      var result = tested.replace(command, "second".getBytes());
 
       // then
-      assertThat(stored).isFalse();
+      assertThat(result).isEqualTo(NOT_STORED);
       assertThat(entries).doesNotContainKey("mykey");
     }
   }

@@ -154,6 +154,7 @@ class ProtocolHandlerTest {
       .expTime(900)
       .bytes(5)
       .build();
+    given(cacheService.put(eq(expectedCommand), any(byte[].class))).willReturn(StoreResult.STORED);
 
     // when
     parserHandler.handle(buffer("set mykey 42 900 5"));
@@ -194,6 +195,7 @@ class ProtocolHandlerTest {
       .bytes(5)
       .noReply(true)
       .build();
+    given(cacheService.put(eq(expectedCommand), any(byte[].class))).willReturn(StoreResult.STORED);
 
     // when
     parserHandler.handle(buffer("set mykey 7 900 5 noreply"));
@@ -214,7 +216,7 @@ class ProtocolHandlerTest {
       .expTime(900)
       .bytes(5)
       .build();
-    given(cacheService.add(eq(expectedCommand), any(byte[].class))).willReturn(true);
+    given(cacheService.add(eq(expectedCommand), any(byte[].class))).willReturn(StoreResult.STORED);
 
     // when
     parserHandler.handle(buffer("add mykey 42 900 5"));
@@ -236,7 +238,7 @@ class ProtocolHandlerTest {
       .expTime(900)
       .bytes(5)
       .build();
-    given(cacheService.add(eq(expectedCommand), any(byte[].class))).willReturn(false);
+    given(cacheService.add(eq(expectedCommand), any(byte[].class))).willReturn(StoreResult.NOT_STORED);
 
     // when
     parserHandler.handle(buffer("add mykey 42 900 5"));
@@ -258,7 +260,7 @@ class ProtocolHandlerTest {
       .bytes(5)
       .noReply(true)
       .build();
-    given(cacheService.add(eq(expectedCommand), any(byte[].class))).willReturn(true);
+    given(cacheService.add(eq(expectedCommand), any(byte[].class))).willReturn(StoreResult.STORED);
 
     // when
     parserHandler.handle(buffer("add mykey 7 900 5 noreply"));
@@ -397,7 +399,7 @@ class ProtocolHandlerTest {
       .expTime(900)
       .bytes(5)
       .build();
-    given(cacheService.replace(eq(expectedCommand), any(byte[].class))).willReturn(true);
+    given(cacheService.replace(eq(expectedCommand), any(byte[].class))).willReturn(StoreResult.STORED);
 
     // when
     parserHandler.handle(buffer("replace mykey 42 900 5"));
@@ -419,7 +421,7 @@ class ProtocolHandlerTest {
       .expTime(900)
       .bytes(5)
       .build();
-    given(cacheService.replace(eq(expectedCommand), any(byte[].class))).willReturn(false);
+    given(cacheService.replace(eq(expectedCommand), any(byte[].class))).willReturn(StoreResult.NOT_STORED);
 
     // when
     parserHandler.handle(buffer("replace mykey 42 900 5"));
@@ -441,7 +443,7 @@ class ProtocolHandlerTest {
       .bytes(5)
       .noReply(true)
       .build();
-    given(cacheService.replace(eq(expectedCommand), any(byte[].class))).willReturn(true);
+    given(cacheService.replace(eq(expectedCommand), any(byte[].class))).willReturn(StoreResult.STORED);
 
     // when
     parserHandler.handle(buffer("replace mykey 7 900 5 noreply"));
@@ -561,6 +563,7 @@ class ProtocolHandlerTest {
       .expTime(60)
       .bytes(5)
       .build();
+    given(cacheService.put(eq(expectedCommand), any(byte[].class))).willReturn(StoreResult.STORED);
 
     // when
     parserHandler.handle(buffer("set mykey 0 900"));
@@ -601,7 +604,7 @@ class ProtocolHandlerTest {
       .expTime(60)
       .bytes(5)
       .build();
-    given(cacheService.add(eq(expectedCommand), any(byte[].class))).willReturn(true);
+    given(cacheService.add(eq(expectedCommand), any(byte[].class))).willReturn(StoreResult.STORED);
 
     // when
     parserHandler.handle(buffer("add mykey 0 900"));
@@ -626,7 +629,7 @@ class ProtocolHandlerTest {
       .expTime(60)
       .bytes(5)
       .build();
-    given(cacheService.replace(eq(expectedCommand), any(byte[].class))).willReturn(true);
+    given(cacheService.replace(eq(expectedCommand), any(byte[].class))).willReturn(StoreResult.STORED);
 
     // when
     parserHandler.handle(buffer("replace mykey 0 900"));

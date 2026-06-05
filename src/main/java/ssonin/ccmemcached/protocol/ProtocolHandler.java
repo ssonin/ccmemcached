@@ -207,15 +207,12 @@ public final class ProtocolHandler {
       throw new ClientError("expected CRLF after data block");
     }
     final var response = switch (pendingStorageCommand) {
-      case AddCommand addCommand -> cacheService.add(addCommand, data) ? "STORED" : "NOT_STORED";
+      case AddCommand addCommand -> cacheService.add(addCommand, data).name();
       case AppendCommand appendCommand -> cacheService.append(appendCommand, data).name();
       case CasCommand casCommand -> cacheService.cas(casCommand, data).name();
       case PrependCommand prependCommand -> cacheService.prepend(prependCommand, data).name();
-      case ReplaceCommand replaceCommand -> cacheService.replace(replaceCommand, data) ? "STORED" : "NOT_STORED";
-      case SetCommand setCommand -> {
-        cacheService.put(setCommand, data);
-        yield "STORED";
-      }
+      case ReplaceCommand replaceCommand -> cacheService.replace(replaceCommand, data).name();
+      case SetCommand setCommand -> cacheService.put(setCommand, data).name();
     };
     if (!pendingStorageCommand.noReply()) {
       socket.write("%s\r\n".formatted(response));

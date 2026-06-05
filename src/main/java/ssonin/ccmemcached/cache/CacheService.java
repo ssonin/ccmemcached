@@ -80,16 +80,17 @@ public final class CacheService {
     delegate.cleanUp();
   }
 
-  public void put(SetCommand command, byte[] data) {
+  public StoreResult put(SetCommand command, byte[] data) {
     delegate.put(command.key(), toCacheEntry(command, data));
+    return STORED;
   }
 
-  public boolean add(AddCommand command, byte[] data) {
-    return delegate.asMap().putIfAbsent(command.key(), toCacheEntry(command, data)) == null;
+  public StoreResult add(AddCommand command, byte[] data) {
+    return delegate.asMap().putIfAbsent(command.key(), toCacheEntry(command, data)) == null ? STORED : NOT_STORED;
   }
 
-  public boolean replace(ReplaceCommand command, byte[] data) {
-    return delegate.asMap().computeIfPresent(command.key(), (_, _) -> toCacheEntry(command, data)) != null;
+  public StoreResult replace(ReplaceCommand command, byte[] data) {
+    return delegate.asMap().computeIfPresent(command.key(), (_, _) -> toCacheEntry(command, data)) != null ? STORED : NOT_STORED;
   }
 
   public StoreResult cas(CasCommand command, byte[] data) {
