@@ -1,7 +1,149 @@
-= Ccmemcached
+= ccmemcached
+:toc:
+:toc-placement!:
 
-image:https://img.shields.io/badge/vert.x-5.0.5-purple.svg[link="https://vertx.io"]
+image:https://img.shields.io/badge/java-25-blue.svg[link="https://openjdk.org/"]
+image:https://img.shields.io/badge/vert.x-5.0.12-purple.svg[link="https://vertx.io"]
+image:https://img.shields.io/badge/caffeine-3.2.3-green.svg[link="https://github.com/ben-manes/caffeine"]
+image:https://img.shields.io/badge/gradle-9.2.1-blue.svg[link="https://gradle.org/"]
 
-A Memcached server clone.
+A Memcached text-protocol server clone built with Java 25, Vert.x, and Caffeine.
 
+toc::[]
 
+== Overview
+
+`ccmemcached` implements a subset of the Memcached text protocol over TCP. It is intended as a focused protocol/server implementation, not as a production Memcached replacement.
+
+The server uses a stateful Vert.x TCP protocol handler for command lines, fixed-size payload reads, and trailing CRLF validation. Cached values are stored as raw bytes in an in-memory Caffeine cache with Memcached-style expiration semantics.
+
+== Supported Commands
+
+* `set`
+* `get`
+* `gets`
+* `cas`
+* `add`
+* `replace`
+* `append`
+* `prepend`
+* `delete`
+* `touch`
+* `incr`
+* `decr`
+
+== Implementation Notes
+
+* Binary-safe storage payload handling using fixed-size parser mode.
+* Memcached-style TTL handling:
+** `0` and negative expiration values are treated as non-expiring.
+** Relative and absolute expiration values are handled separately.
+** Storage updates reset TTL; numeric and append/prepend updates preserve existing TTL.
+* `gets` / `cas` support opaque unsigned 64-bit CAS tokens.
+* `incr` / `decr` parse and format unsigned 64-bit integer values.
+* `append` / `prepend` use an optimistic update loop over the backing concurrent map.
+* Protocol limits are centralised:
+** Max value size: `1 MiB`
+** Max key size: `250` bytes
+** Max command line size: `8192` bytes
+** Max keys per `get` / `gets`: `100`
+* Unit tests cover parser, cache, expiry, response formatting, and protocol handler behaviour.
+* Integration tests use real TCP sockets against a deployed Vert.x app.
+
+== Technology Stack
+
+* *Runtime*: Java 25
+* *Networking*: Vert.x 5.0.12
+* *Cache*: Caffeine 3.2.3
+* *Build*: Gradle with Shadow plugin
+* *Testing*: JUnit 5, AssertJ, Mockito, Vert.x JUnit 5
+
+== Getting Started
+
+=== Prerequisites
+
+* Java 25
+
+=== Build
+
+[source,bash]
+----
+./gradlew build
+----
+
+=== Run Tests
+
+[source,bash]
+----
+./gradlew test integrationTest
+----
+
+=== Run Server
+
+[source,bash]
+----
+./gradlew run
+----
+
+The server listens on port `11211` by default.
+
+=== Build Fat JAR
+
+[source,bash]
+----
+./gradlew shadowJar
+----
+
+The fat JAR is generated under `build/libs/` with the `fat` classifier.
+
+== Example Session
+
+Start the server, then connect with `nc`:
+
+[source,bash]
+----
+nc localhost 11211
+----
+
+Store and retrieve a value:
+
+[source,text]
+----
+set greeting 0 60 5
+hello
+STORED
+get greeting
+VALUE greeting 0 5
+hello
+END
+----
+
+Use CAS:
+
+[source,text]
+----
+gets greeting
+VALUE greeting 0 5 1
+hello
+END
+cas greeting 0 60 5 1
+world
+STORED
+----
+
+Use numeric commands:
+
+[source,text]
+----
+set counter 0 60 1
+1
+STORED
+incr counter 41
+42
+decr counter 2
+40
+----
+
+== Known Scope
+
+This project focuses on the text protocol command surface listed above. It does not aim to implement the full Memcached server feature set, binary protocol, clustering, persistence, authentication, or production observability.
