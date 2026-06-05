@@ -86,11 +86,15 @@ public final class CacheService {
   }
 
   public StoreResult add(AddCommand command, byte[] data) {
-    return delegate.asMap().putIfAbsent(command.key(), toCacheEntry(command, data)) == null ? STORED : NOT_STORED;
+    return delegate.asMap().putIfAbsent(command.key(), toCacheEntry(command, data)) == null
+      ? STORED
+      : NOT_STORED;
   }
 
   public StoreResult replace(ReplaceCommand command, byte[] data) {
-    return delegate.asMap().computeIfPresent(command.key(), (_, _) -> toCacheEntry(command, data)) != null ? STORED : NOT_STORED;
+    return delegate.asMap().computeIfPresent(command.key(), (_, _) -> toCacheEntry(command, data)) != null
+      ? STORED
+      : NOT_STORED;
   }
 
   public StoreResult cas(CasCommand command, byte[] data) {
@@ -110,40 +114,32 @@ public final class CacheService {
   }
 
   public StoreResult append(AppendCommand command, byte[] data) {
-    final var entries = delegate.asMap();
-    while (true) {
-      final var existing = entries.get(command.key());
-      if (existing == null || data.length > MAX_VALUE_BYTES - existing.data().length) {
-        return NOT_STORED;
-      }
-      final var updated = cacheEntry()
-        .flags(existing.flags())
-        .ttl(existing.ttl())
-        .data(concat(existing.data(), data))
-        .casUnique(nextCasUnique())
-        .expiryUpdate(PRESERVE)
-        .build();
-      if (entries.replace(command.key(), existing, updated)) {
-        return STORED;
-      }
-    }
+    return updateConcatenatedValue(command.key(), data, ConcatenationOrder.APPEND);
   }
 
   public StoreResult prepend(PrependCommand command, byte[] data) {
+    return updateConcatenatedValue(command.key(), data, ConcatenationOrder.PREPEND);
+  }
+
+  private StoreResult updateConcatenatedValue(String key, byte[] data, ConcatenationOrder order) {
     final var entries = delegate.asMap();
     while (true) {
-      final var existing = entries.get(command.key());
+      final var existing = entries.get(key);
       if (existing == null || data.length > MAX_VALUE_BYTES - existing.data().length) {
         return NOT_STORED;
       }
+      final var concatenation = switch (order) {
+        case APPEND -> new Concatenation(existing.data(), data);
+        case PREPEND -> new Concatenation(data, existing.data());
+      };
       final var updated = cacheEntry()
         .flags(existing.flags())
         .ttl(existing.ttl())
-        .data(concat(data, existing.data()))
+        .data(concat(concatenation.first(), concatenation.second()))
         .casUnique(nextCasUnique())
         .expiryUpdate(PRESERVE)
         .build();
-      if (entries.replace(command.key(), existing, updated)) {
+      if (entries.replace(key, existing, updated)) {
         return STORED;
       }
     }
@@ -209,5 +205,12 @@ public final class CacheService {
       .casUnique(nextCasUnique())
       .expiryUpdate(RESET)
       .build();
+  }
+
+  private record Concatenation(byte[] first, byte[] second) {}
+
+  private enum ConcatenationOrder {
+    APPEND,
+    PREPEND
   }
 }
