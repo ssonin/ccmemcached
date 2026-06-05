@@ -1,17 +1,10 @@
 package ssonin.ccmemcached.protocol.command;
 
-import static ssonin.ccmemcached.protocol.command.CommandName.PREPEND;
-
 public record PrependCommand(
   String key,
   int bytes,
   boolean noReply
 ) implements StorageCommand {
-
-  @Override
-  public CommandName name() {
-    return PREPEND;
-  }
 
   public static final class Builder {
 

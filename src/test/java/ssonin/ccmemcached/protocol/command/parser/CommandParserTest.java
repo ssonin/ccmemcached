@@ -23,18 +23,6 @@ import static org.assertj.core.api.Assertions.catchThrowable;
 import static ssonin.ccmemcached.protocol.command.AddCommand.Builder.addCommand;
 import static ssonin.ccmemcached.protocol.command.AppendCommand.Builder.appendCommand;
 import static ssonin.ccmemcached.protocol.command.CasCommand.Builder.casCommand;
-import static ssonin.ccmemcached.protocol.command.CommandName.ADD;
-import static ssonin.ccmemcached.protocol.command.CommandName.APPEND;
-import static ssonin.ccmemcached.protocol.command.CommandName.CAS;
-import static ssonin.ccmemcached.protocol.command.CommandName.DECR;
-import static ssonin.ccmemcached.protocol.command.CommandName.DELETE;
-import static ssonin.ccmemcached.protocol.command.CommandName.GET;
-import static ssonin.ccmemcached.protocol.command.CommandName.GETS;
-import static ssonin.ccmemcached.protocol.command.CommandName.INCR;
-import static ssonin.ccmemcached.protocol.command.CommandName.PREPEND;
-import static ssonin.ccmemcached.protocol.command.CommandName.REPLACE;
-import static ssonin.ccmemcached.protocol.command.CommandName.SET;
-import static ssonin.ccmemcached.protocol.command.CommandName.TOUCH;
 import static ssonin.ccmemcached.protocol.command.PrependCommand.Builder.prependCommand;
 import static ssonin.ccmemcached.protocol.command.ReplaceCommand.Builder.replaceCommand;
 import static ssonin.ccmemcached.protocol.command.SetCommand.Builder.setCommand;
@@ -74,7 +62,6 @@ class CommandParserTest {
       .expTime(900)
       .bytes(5)
       .build());
-    assertThat(command.name()).isEqualTo(ADD);
   }
 
   @Test
@@ -90,7 +77,6 @@ class CommandParserTest {
       .key("mykey")
       .bytes(5)
       .build());
-    assertThat(command.name()).isEqualTo(APPEND);
     assertThat(command).isInstanceOf(AppendCommand.class);
   }
 
@@ -107,7 +93,6 @@ class CommandParserTest {
       .key("mykey")
       .bytes(5)
       .build());
-    assertThat(command.name()).isEqualTo(PREPEND);
     assertThat(command).isInstanceOf(PrependCommand.class);
   }
 
@@ -128,7 +113,6 @@ class CommandParserTest {
       .casUnique(42L)
       .noReply(true)
       .build());
-    assertThat(command.name()).isEqualTo(CAS);
     assertThat(command).isInstanceOf(CasCommand.class);
   }
 
@@ -147,7 +131,6 @@ class CommandParserTest {
       .expTime(900)
       .bytes(5)
       .build());
-    assertThat(command.name()).isEqualTo(REPLACE);
   }
 
   @Test
@@ -161,8 +144,18 @@ class CommandParserTest {
     // then
     assertThat(fromAdd).isInstanceOf(AddCommand.class);
     assertThat(fromReplace).isInstanceOf(ReplaceCommand.class);
-    assertThat(fromUpper.name()).isEqualTo(SET);
-    assertThat(fromMixed.name()).isEqualTo(SET);
+    assertThat(fromUpper).isEqualTo(setCommand()
+      .key("mykey")
+      .flags(0)
+      .expTime(900)
+      .bytes(5)
+      .build());
+    assertThat(fromMixed).isEqualTo(setCommand()
+      .key("mykey")
+      .flags(0)
+      .expTime(900)
+      .bytes(5)
+      .build());
   }
 
   @Test
@@ -201,7 +194,6 @@ class CommandParserTest {
 
     // then
     assertThat(command).isEqualTo(new GetCommand(List.of("mykey", "other")));
-    assertThat(command.name()).isEqualTo(GET);
   }
 
   @Test
@@ -211,7 +203,6 @@ class CommandParserTest {
 
     // then
     assertThat(command).isEqualTo(new GetsCommand(List.of("mykey", "other")));
-    assertThat(command.name()).isEqualTo(GETS);
   }
 
   @Test
@@ -221,7 +212,6 @@ class CommandParserTest {
 
     // then
     assertThat(command).isEqualTo(new DeleteCommand("mykey", true));
-    assertThat(command.name()).isEqualTo(DELETE);
   }
 
   @Test
@@ -231,7 +221,6 @@ class CommandParserTest {
 
     // then
     assertThat(command).isEqualTo(new TouchCommand("mykey", 60, true));
-    assertThat(command.name()).isEqualTo(TOUCH);
   }
 
   @Test
@@ -241,7 +230,6 @@ class CommandParserTest {
 
     // then
     assertThat(command).isEqualTo(new IncrCommand("mykey", 42L, true));
-    assertThat(command.name()).isEqualTo(INCR);
   }
 
   @Test
@@ -251,6 +239,5 @@ class CommandParserTest {
 
     // then
     assertThat(command).isEqualTo(new DecrCommand("mykey", 42L, true));
-    assertThat(command.name()).isEqualTo(DECR);
   }
 }

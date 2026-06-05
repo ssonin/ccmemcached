@@ -1,7 +1,5 @@
 package ssonin.ccmemcached.protocol.command;
 
-import static ssonin.ccmemcached.protocol.command.CommandName.CAS;
-
 public record CasCommand(
   String key,
   int flags,
@@ -10,11 +8,6 @@ public record CasCommand(
   long casUnique,
   boolean noReply
 ) implements MetadataStorageCommand {
-
-  @Override
-  public CommandName name() {
-    return CAS;
-  }
 
   public static final class Builder {
 

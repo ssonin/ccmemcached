@@ -126,7 +126,6 @@ public final class ProtocolHandler {
       case RetrievalCommand retrievalCommand -> startRetrieval(retrievalCommand);
       case SetCommand setCommand -> startStorage(setCommand);
       case TouchCommand touchCommand -> handleTouch(touchCommand);
-      default -> throw new ClientError("command '%s' is not implemented".formatted(command.name().name().toLowerCase()));
     }
   }
 

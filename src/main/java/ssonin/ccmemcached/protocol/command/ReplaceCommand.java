@@ -1,7 +1,5 @@
 package ssonin.ccmemcached.protocol.command;
 
-import static ssonin.ccmemcached.protocol.command.CommandName.REPLACE;
-
 public record ReplaceCommand(
   String key,
   int flags,
@@ -9,11 +7,6 @@ public record ReplaceCommand(
   int bytes,
   boolean noReply
 ) implements MetadataStorageCommand {
-
-  @Override
-  public CommandName name() {
-    return REPLACE;
-  }
 
   public static final class Builder {
 

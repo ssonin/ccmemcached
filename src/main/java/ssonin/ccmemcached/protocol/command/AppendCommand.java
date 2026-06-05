@@ -1,17 +1,10 @@
 package ssonin.ccmemcached.protocol.command;
 
-import static ssonin.ccmemcached.protocol.command.CommandName.APPEND;
-
 public record AppendCommand(
   String key,
   int bytes,
   boolean noReply
 ) implements StorageCommand {
-
-  @Override
-  public CommandName name() {
-    return APPEND;
-  }
 
   public static final class Builder {
 
