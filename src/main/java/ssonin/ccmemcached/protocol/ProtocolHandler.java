@@ -4,8 +4,8 @@ import io.vertx.core.buffer.Buffer;
 import io.vertx.core.net.NetSocket;
 import io.vertx.core.parsetools.RecordParser;
 import org.slf4j.Logger;
-import ssonin.ccmemcached.cache.CacheEntry;
 import ssonin.ccmemcached.cache.CacheService;
+import ssonin.ccmemcached.cache.StoreResult;
 import ssonin.ccmemcached.protocol.command.AddCommand;
 import ssonin.ccmemcached.protocol.command.AppendCommand;
 import ssonin.ccmemcached.protocol.command.CasCommand;
@@ -21,9 +21,9 @@ import ssonin.ccmemcached.protocol.command.StorageCommand;
 import ssonin.ccmemcached.protocol.command.TouchCommand;
 import ssonin.ccmemcached.protocol.error.ApplicationError;
 import ssonin.ccmemcached.protocol.error.ClientError;
-import ssonin.ccmemcached.protocol.error.ErrorType;
 
 import static io.vertx.core.buffer.Buffer.buffer;
+import static java.util.Objects.requireNonNull;
 import static org.slf4j.LoggerFactory.getLogger;
 import static ssonin.ccmemcached.protocol.MemcachedLimits.MAX_COMMAND_LINE_BYTES;
 import static ssonin.ccmemcached.protocol.MemcachedLimits.MAX_VALUE_BYTES;
@@ -40,19 +40,21 @@ public final class ProtocolHandler {
   private final CacheService cacheService;
   private final NetSocket socket;
   private final RecordParser parser;
+  private final ResponseFormatter responseFormatter;
 
   private State state = AWAITING_COMMAND;
   private StorageCommand pendingStorageCommand;
   private byte[] data;
 
   public ProtocolHandler(CacheService cacheService, NetSocket socket) {
-    this(cacheService, socket, RecordParser.newDelimited("\r\n"));
+    this(cacheService, socket, RecordParser.newDelimited("\r\n"), new ResponseFormatter());
   }
 
-  ProtocolHandler(CacheService cacheService, NetSocket socket, RecordParser parser) {
-    this.cacheService = cacheService;
-    this.socket = socket;
-    this.parser = parser;
+  ProtocolHandler(CacheService cacheService, NetSocket socket, RecordParser parser, ResponseFormatter responseFormatter) {
+    this.cacheService = requireNonNull(cacheService, "cacheService must not be null");
+    this.socket = requireNonNull(socket, "socket must not be null");
+    this.parser = requireNonNull(parser, "parser must not be null");
+    this.responseFormatter = requireNonNull(responseFormatter, "responseFormatter must not be null");
     this.parser.maxRecordSize(MAX_COMMAND_LINE_BYTES);
     this.parser.exceptionHandler(this::handleParserError);
     this.parser.handler(this::handle);
@@ -67,27 +69,16 @@ public final class ProtocolHandler {
       process(buffer);
     } catch (ApplicationError e) {
       resetState();
-      socket.write(errorResponse(e));
+      socket.write(responseFormatter.error(e));
     } catch (RuntimeException e) {
       log.error("Unexpected error while processing client command", e);
-      socket.end(buffer(errorResponse(SERVER_ERROR, "internal server error")));
+      socket.end(buffer(responseFormatter.error(SERVER_ERROR, "internal server error")));
     }
   }
 
   private void handleParserError(Throwable error) {
     log.warn("Closing client connection after record parser failure", error);
     socket.end();
-  }
-
-  private String errorResponse(ApplicationError error) {
-    return errorResponse(error.type(), error.getMessage());
-  }
-
-  private String errorResponse(ErrorType type, String message) {
-    return switch (type) {
-      case ERROR -> "ERROR\r\n";
-      case CLIENT_ERROR, SERVER_ERROR -> "%s %s\r\n".formatted(type, message);
-    };
   }
 
   private void resetState() {
@@ -132,22 +123,21 @@ public final class ProtocolHandler {
   private void handleDelete(DeleteCommand command) {
     final var deleted = cacheService.delete(command.key());
     if (!command.noReply()) {
-      final var response = deleted ? "DELETED" : "NOT_FOUND";
-      socket.write("%s\r\n".formatted(response));
+      socket.write(responseFormatter.deleted(deleted));
     }
   }
 
   private void handleIncr(IncrCommand command) {
     final var updatedValue = cacheService.increment(command);
     if (!command.noReply()) {
-      socket.write("%s\r\n".formatted(updatedValue.isPresent() ? Long.toUnsignedString(updatedValue.getAsLong()) : "NOT_FOUND"));
+      socket.write(responseFormatter.numeric(updatedValue));
     }
   }
 
   private void handleDecr(DecrCommand command) {
     final var updatedValue = cacheService.decrement(command);
     if (!command.noReply()) {
-      socket.write("%s\r\n".formatted(updatedValue.isPresent() ? Long.toUnsignedString(updatedValue.getAsLong()) : "NOT_FOUND"));
+      socket.write(responseFormatter.numeric(updatedValue));
     }
   }
 
@@ -156,31 +146,18 @@ public final class ProtocolHandler {
     command.keys().forEach(key -> {
       final var entry = entries.get(key);
       if (entry != null) {
-        socket.write(valueLine(key, entry, command.includeCasUnique()));
+        socket.write(responseFormatter.valueLine(key, entry, command.includeCasUnique()));
         socket.write(buffer(entry.data()));
-        socket.write("\r\n");
+        socket.write(responseFormatter.crlf());
       }
     });
-    socket.write("END\r\n");
-  }
-
-  private String valueLine(String key, CacheEntry entry, boolean includeCasUnique) {
-    if (includeCasUnique) {
-      return "VALUE %s %s %s %s\r\n".formatted(
-        key,
-        entry.flags(),
-        entry.data().length,
-        Long.toUnsignedString(entry.casUnique())
-      );
-    }
-    return "VALUE %s %s %s\r\n".formatted(key, entry.flags(), entry.data().length);
+    socket.write(responseFormatter.end());
   }
 
   private void handleTouch(TouchCommand command) {
     final var touched = cacheService.touch(command);
     if (!command.noReply()) {
-      final var response = touched ? "TOUCHED" : "NOT_FOUND";
-      socket.write("%s\r\n".formatted(response));
+      socket.write(responseFormatter.touched(touched));
     }
   }
 
@@ -206,16 +183,16 @@ public final class ProtocolHandler {
     if (trailingData.length() != 0) {
       throw new ClientError("expected CRLF after data block");
     }
-    final var response = switch (pendingStorageCommand) {
-      case AddCommand addCommand -> cacheService.add(addCommand, data).name();
-      case AppendCommand appendCommand -> cacheService.append(appendCommand, data).name();
-      case CasCommand casCommand -> cacheService.cas(casCommand, data).name();
-      case PrependCommand prependCommand -> cacheService.prepend(prependCommand, data).name();
-      case ReplaceCommand replaceCommand -> cacheService.replace(replaceCommand, data).name();
-      case SetCommand setCommand -> cacheService.put(setCommand, data).name();
+    final StoreResult result = switch (pendingStorageCommand) {
+      case AddCommand addCommand -> cacheService.add(addCommand, data);
+      case AppendCommand appendCommand -> cacheService.append(appendCommand, data);
+      case CasCommand casCommand -> cacheService.cas(casCommand, data);
+      case PrependCommand prependCommand -> cacheService.prepend(prependCommand, data);
+      case ReplaceCommand replaceCommand -> cacheService.replace(replaceCommand, data);
+      case SetCommand setCommand -> cacheService.put(setCommand, data);
     };
     if (!pendingStorageCommand.noReply()) {
-      socket.write("%s\r\n".formatted(response));
+      socket.write(responseFormatter.storage(result));
     }
     resetState();
   }

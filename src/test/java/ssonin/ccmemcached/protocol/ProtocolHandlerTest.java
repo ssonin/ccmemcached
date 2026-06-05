@@ -6,11 +6,13 @@ import io.vertx.core.net.NetSocket;
 import io.vertx.core.parsetools.RecordParser;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
+import ssonin.ccmemcached.cache.CacheEntry;
 import ssonin.ccmemcached.cache.CacheService;
 import ssonin.ccmemcached.cache.StoreResult;
 import ssonin.ccmemcached.protocol.command.DecrCommand;
 import ssonin.ccmemcached.protocol.command.IncrCommand;
 import ssonin.ccmemcached.protocol.command.TouchCommand;
+import ssonin.ccmemcached.protocol.error.ApplicationError;
 
 import java.time.Duration;
 import java.util.ArrayList;
@@ -21,6 +23,7 @@ import java.util.OptionalLong;
 
 import static io.vertx.core.buffer.Buffer.buffer;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
@@ -38,6 +41,7 @@ import static ssonin.ccmemcached.protocol.command.CasCommand.Builder.casCommand;
 import static ssonin.ccmemcached.protocol.command.PrependCommand.Builder.prependCommand;
 import static ssonin.ccmemcached.protocol.command.ReplaceCommand.Builder.replaceCommand;
 import static ssonin.ccmemcached.protocol.command.SetCommand.Builder.setCommand;
+import static ssonin.ccmemcached.protocol.error.ErrorType.SERVER_ERROR;
 
 class ProtocolHandlerTest {
 
@@ -47,11 +51,16 @@ class ProtocolHandlerTest {
   private final CacheService cacheService = Mockito.mock(CacheService.class);
   private final NetSocket socket = Mockito.mock(NetSocket.class);
   private final RecordParser parser = parser();
+  private final ResponseFormatter responseFormatter = Mockito.mock(ResponseFormatter.class);
 
-  private final ProtocolHandler tested = new ProtocolHandler(cacheService, socket, parser);
+  private final ProtocolHandler tested = new ProtocolHandler(cacheService, socket, parser, responseFormatter);
 
   private Handler<Buffer> parserHandler;
   private Handler<Throwable> parserExceptionHandler;
+
+  ProtocolHandlerTest() {
+    stubResponseFormatter();
+  }
 
   @Test
   void configures_parser_with_command_line_limit_and_exception_handler() {
@@ -164,7 +173,7 @@ class ProtocolHandlerTest {
     // then
     then(cacheService).should().put(eq(expectedCommand), argThat(data -> Arrays.equals(data, "value".getBytes())));
     then(parser).should(times(2)).delimitedMode("\r\n");
-    then(socket).should().write("STORED\r\n");
+    then(socket).should().write("formatted-storage-STORED");
   }
 
   @Test
@@ -180,9 +189,9 @@ class ProtocolHandlerTest {
 
     // then
     then(cacheService).should(never()).put(any(), any(byte[].class));
-    then(socket).should().write("CLIENT_ERROR expected CRLF after data block\r\n");
+    then(socket).should().write("formatted-error");
     then(cacheService).should().delete("next");
-    then(socket).should().write("DELETED\r\n");
+    then(socket).should().write("formatted-deleted");
   }
 
   @Test
@@ -226,7 +235,7 @@ class ProtocolHandlerTest {
     // then
     then(cacheService).should().add(eq(expectedCommand), argThat(data -> Arrays.equals(data, "value".getBytes())));
     then(parser).should(times(2)).delimitedMode("\r\n");
-    then(socket).should().write("STORED\r\n");
+    then(socket).should().write("formatted-storage-STORED");
   }
 
   @Test
@@ -247,7 +256,7 @@ class ProtocolHandlerTest {
 
     // then
     then(cacheService).should().add(eq(expectedCommand), argThat(data -> Arrays.equals(data, "value".getBytes())));
-    then(socket).should().write("NOT_STORED\r\n");
+    then(socket).should().write("formatted-storage-NOT_STORED");
   }
 
   @Test
@@ -289,7 +298,7 @@ class ProtocolHandlerTest {
     // then
     then(cacheService).should().append(eq(expectedCommand), argThat(data -> Arrays.equals(data, "value".getBytes())));
     then(parser).should(times(2)).delimitedMode("\r\n");
-    then(socket).should().write("STORED\r\n");
+    then(socket).should().write("formatted-storage-STORED");
   }
 
   @Test
@@ -308,7 +317,7 @@ class ProtocolHandlerTest {
 
     // then
     then(cacheService).should().append(eq(expectedCommand), argThat(data -> Arrays.equals(data, "value".getBytes())));
-    then(socket).should().write("NOT_STORED\r\n");
+    then(socket).should().write("formatted-storage-NOT_STORED");
   }
 
   @Test
@@ -348,7 +357,7 @@ class ProtocolHandlerTest {
     // then
     then(cacheService).should().prepend(eq(expectedCommand), argThat(data -> Arrays.equals(data, "value".getBytes())));
     then(parser).should(times(2)).delimitedMode("\r\n");
-    then(socket).should().write("STORED\r\n");
+    then(socket).should().write("formatted-storage-STORED");
   }
 
   @Test
@@ -367,7 +376,7 @@ class ProtocolHandlerTest {
 
     // then
     then(cacheService).should().prepend(eq(expectedCommand), argThat(data -> Arrays.equals(data, "value".getBytes())));
-    then(socket).should().write("NOT_STORED\r\n");
+    then(socket).should().write("formatted-storage-NOT_STORED");
   }
 
   @Test
@@ -409,7 +418,7 @@ class ProtocolHandlerTest {
     // then
     then(cacheService).should().replace(eq(expectedCommand), argThat(data -> Arrays.equals(data, "value".getBytes())));
     then(parser).should(times(2)).delimitedMode("\r\n");
-    then(socket).should().write("STORED\r\n");
+    then(socket).should().write("formatted-storage-STORED");
   }
 
   @Test
@@ -430,7 +439,7 @@ class ProtocolHandlerTest {
 
     // then
     then(cacheService).should().replace(eq(expectedCommand), argThat(data -> Arrays.equals(data, "value".getBytes())));
-    then(socket).should().write("NOT_STORED\r\n");
+    then(socket).should().write("formatted-storage-NOT_STORED");
   }
 
   @Test
@@ -475,7 +484,7 @@ class ProtocolHandlerTest {
     // then
     then(cacheService).should().cas(eq(expectedCommand), argThat(data -> Arrays.equals(data, "value".getBytes())));
     then(parser).should(times(2)).delimitedMode("\r\n");
-    then(socket).should().write("STORED\r\n");
+    then(socket).should().write("formatted-storage-STORED");
   }
 
   @Test
@@ -497,7 +506,7 @@ class ProtocolHandlerTest {
 
     // then
     then(cacheService).should().cas(eq(expectedCommand), argThat(data -> Arrays.equals(data, "value".getBytes())));
-    then(socket).should().write("EXISTS\r\n");
+    then(socket).should().write("formatted-storage-EXISTS");
   }
 
   @Test
@@ -519,7 +528,7 @@ class ProtocolHandlerTest {
 
     // then
     then(cacheService).should().cas(eq(expectedCommand), argThat(data -> Arrays.equals(data, "value".getBytes())));
-    then(socket).should().write("NOT_FOUND\r\n");
+    then(socket).should().write("formatted-storage-NOT_FOUND");
   }
 
   @Test
@@ -572,8 +581,8 @@ class ProtocolHandlerTest {
     parserHandler.handle(buffer());
 
     // then
-    then(socket).should().write("CLIENT_ERROR expected at least 5 fields, got 4\r\n");
-    then(socket).should().write("STORED\r\n");
+    then(socket).should().write("formatted-error");
+    then(socket).should().write("formatted-storage-STORED");
     then(parser).should(times(3)).delimitedMode("\r\n");
     then(parser).should().fixedSizeMode(5);
     then(cacheService).should().put(eq(expectedCommand), argThat(data -> Arrays.equals(data, "hello".getBytes())));
@@ -589,9 +598,9 @@ class ProtocolHandlerTest {
     parserHandler.handle(buffer("delete mykey"));
 
     // then
-    then(socket).should().write("ERROR\r\n");
+    then(socket).should().write("formatted-error");
     then(cacheService).should().delete("mykey");
-    then(socket).should().write("DELETED\r\n");
+    then(socket).should().write("formatted-deleted");
     then(parser).should(times(1)).delimitedMode("\r\n");
   }
 
@@ -613,8 +622,8 @@ class ProtocolHandlerTest {
     parserHandler.handle(buffer());
 
     // then
-    then(socket).should().write("CLIENT_ERROR expected at least 5 fields, got 4\r\n");
-    then(socket).should().write("STORED\r\n");
+    then(socket).should().write("formatted-error");
+    then(socket).should().write("formatted-storage-STORED");
     then(parser).should(times(3)).delimitedMode("\r\n");
     then(parser).should().fixedSizeMode(5);
     then(cacheService).should().add(eq(expectedCommand), argThat(data -> Arrays.equals(data, "hello".getBytes())));
@@ -638,8 +647,8 @@ class ProtocolHandlerTest {
     parserHandler.handle(buffer());
 
     // then
-    then(socket).should().write("CLIENT_ERROR expected at least 5 fields, got 4\r\n");
-    then(socket).should().write("STORED\r\n");
+    then(socket).should().write("formatted-error");
+    then(socket).should().write("formatted-storage-STORED");
     then(parser).should(times(3)).delimitedMode("\r\n");
     then(parser).should().fixedSizeMode(5);
     then(cacheService).should().replace(eq(expectedCommand), argThat(data -> Arrays.equals(data, "hello".getBytes())));
@@ -655,9 +664,9 @@ class ProtocolHandlerTest {
     parserHandler.handle(buffer("delete mykey"));
 
     // then
-    then(socket).should().write("CLIENT_ERROR bytes exceeds maximum size of 1048576\r\n");
+    then(socket).should().write("formatted-error");
     then(cacheService).should().delete("mykey");
-    then(socket).should().write("DELETED\r\n");
+    then(socket).should().write("formatted-deleted");
     then(parser).should(times(1)).delimitedMode("\r\n");
   }
 
@@ -673,7 +682,7 @@ class ProtocolHandlerTest {
 
     // then
     then(cacheService).should().getAllPresent(keys);
-    then(socket).should().write("END\r\n");
+    then(socket).should().write("formatted-end");
   }
 
   @Test
@@ -687,9 +696,9 @@ class ProtocolHandlerTest {
     parserHandler.handle(buffer("delete mykey"));
 
     // then
-    then(socket).should().write("CLIENT_ERROR command line exceeds maximum length of 8192 bytes\r\n");
+    then(socket).should().write("formatted-error");
     then(cacheService).should().delete("mykey");
-    then(socket).should().write("DELETED\r\n");
+    then(socket).should().write("formatted-deleted");
     then(parser).should(times(1)).delimitedMode("\r\n");
   }
 
@@ -719,13 +728,13 @@ class ProtocolHandlerTest {
     // then
     then(cacheService).should().getAllPresent(keys);
     var inOrder = inOrder(socket);
-    inOrder.verify(socket).write("VALUE second 2 3\r\n");
+    inOrder.verify(socket).write("formatted-value-line-second-false");
     inOrder.verify(socket).write(buffer("two"));
-    inOrder.verify(socket).write("\r\n");
-    inOrder.verify(socket).write("VALUE first 1 3\r\n");
+    inOrder.verify(socket).write("formatted-crlf");
+    inOrder.verify(socket).write("formatted-value-line-first-false");
     inOrder.verify(socket).write(buffer("one"));
-    inOrder.verify(socket).write("\r\n");
-    inOrder.verify(socket).write("END\r\n");
+    inOrder.verify(socket).write("formatted-crlf");
+    inOrder.verify(socket).write("formatted-end");
     inOrder.verifyNoMoreInteractions();
   }
 
@@ -755,13 +764,13 @@ class ProtocolHandlerTest {
     // then
     then(cacheService).should().getAllPresent(keys);
     var inOrder = inOrder(socket);
-    inOrder.verify(socket).write("VALUE second 2 3 18446744073709551615\r\n");
+    inOrder.verify(socket).write("formatted-value-line-second-true");
     inOrder.verify(socket).write(buffer("two"));
-    inOrder.verify(socket).write("\r\n");
-    inOrder.verify(socket).write("VALUE first 1 3 41\r\n");
+    inOrder.verify(socket).write("formatted-crlf");
+    inOrder.verify(socket).write("formatted-value-line-first-true");
     inOrder.verify(socket).write(buffer("one"));
-    inOrder.verify(socket).write("\r\n");
-    inOrder.verify(socket).write("END\r\n");
+    inOrder.verify(socket).write("formatted-crlf");
+    inOrder.verify(socket).write("formatted-end");
     inOrder.verifyNoMoreInteractions();
   }
 
@@ -775,7 +784,7 @@ class ProtocolHandlerTest {
 
     // then
     then(cacheService).should().delete("mykey");
-    then(socket).should().write("DELETED\r\n");
+    then(socket).should().write("formatted-deleted");
   }
 
   @Test
@@ -788,7 +797,7 @@ class ProtocolHandlerTest {
 
     // then
     then(cacheService).should().delete("missing");
-    then(socket).should().write("NOT_FOUND\r\n");
+    then(socket).should().write("formatted-delete-not-found");
   }
 
   @Test
@@ -815,7 +824,7 @@ class ProtocolHandlerTest {
 
     // then
     then(cacheService).should().touch(command);
-    then(socket).should().write("TOUCHED\r\n");
+    then(socket).should().write("formatted-touched");
     then(parser).should(never()).fixedSizeMode(anyInt());
   }
 
@@ -830,7 +839,7 @@ class ProtocolHandlerTest {
 
     // then
     then(cacheService).should().touch(command);
-    then(socket).should().write("NOT_FOUND\r\n");
+    then(socket).should().write("formatted-touch-not-found");
   }
 
   @Test
@@ -858,7 +867,7 @@ class ProtocolHandlerTest {
 
     // then
     then(cacheService).should().increment(command);
-    then(socket).should().write("42\r\n");
+    then(socket).should().write("formatted-numeric-42");
     then(parser).should(never()).fixedSizeMode(anyInt());
   }
 
@@ -873,7 +882,7 @@ class ProtocolHandlerTest {
 
     // then
     then(cacheService).should().increment(command);
-    then(socket).should().write("18446744073709551614\r\n");
+    then(socket).should().write("formatted-numeric-unsigned");
   }
 
   @Test
@@ -887,7 +896,7 @@ class ProtocolHandlerTest {
 
     // then
     then(cacheService).should().increment(command);
-    then(socket).should().write("NOT_FOUND\r\n");
+    then(socket).should().write("formatted-numeric-not-found");
   }
 
   @Test
@@ -915,7 +924,7 @@ class ProtocolHandlerTest {
 
     // then
     then(cacheService).should().decrement(command);
-    then(socket).should().write("40\r\n");
+    then(socket).should().write("formatted-numeric-40");
     then(parser).should(never()).fixedSizeMode(anyInt());
   }
 
@@ -930,7 +939,7 @@ class ProtocolHandlerTest {
 
     // then
     then(cacheService).should().decrement(command);
-    then(socket).should().write("NOT_FOUND\r\n");
+    then(socket).should().write("formatted-numeric-not-found");
   }
 
   @Test
@@ -959,9 +968,9 @@ class ProtocolHandlerTest {
     parserHandler.handle(buffer("delete mykey"));
 
     // then
-    then(socket).should().write("CLIENT_ERROR value is not a valid unsigned integer\r\n");
+    then(socket).should().write("formatted-error");
     then(cacheService).should().delete("mykey");
-    then(socket).should().write("DELETED\r\n");
+    then(socket).should().write("formatted-deleted");
   }
 
   @Test
@@ -973,7 +982,7 @@ class ProtocolHandlerTest {
     parserHandler.handle(buffer("delete mykey"));
 
     // then
-    then(socket).should().end(buffer("SERVER_ERROR internal server error\r\n"));
+    then(socket).should().end(buffer("formatted-server-error"));
     then(socket).shouldHaveNoMoreInteractions();
   }
 
@@ -995,7 +1004,7 @@ class ProtocolHandlerTest {
     parserHandler.handle(buffer());
 
     // then
-    then(socket).should().end(buffer("SERVER_ERROR internal server error\r\n"));
+    then(socket).should().end(buffer("formatted-server-error"));
     then(socket).shouldHaveNoMoreInteractions();
   }
 
@@ -1010,6 +1019,29 @@ class ProtocolHandlerTest {
       return parser;
     }).given(parser).handler(any());
     return parser;
+  }
+
+  private void stubResponseFormatter() {
+    willAnswer(invocation -> "formatted-error")
+      .given(responseFormatter).error(any(ApplicationError.class));
+    given(responseFormatter.error(eq(SERVER_ERROR), eq("internal server error"))).willReturn("formatted-server-error");
+
+    willAnswer(invocation -> "formatted-storage-" + ((StoreResult) invocation.getArgument(0)).name())
+      .given(responseFormatter).storage(any(StoreResult.class));
+    given(responseFormatter.deleted(true)).willReturn("formatted-deleted");
+    given(responseFormatter.deleted(false)).willReturn("formatted-delete-not-found");
+    given(responseFormatter.touched(true)).willReturn("formatted-touched");
+    given(responseFormatter.touched(false)).willReturn("formatted-touch-not-found");
+
+    given(responseFormatter.numeric(OptionalLong.of(42L))).willReturn("formatted-numeric-42");
+    given(responseFormatter.numeric(OptionalLong.of(-2L))).willReturn("formatted-numeric-unsigned");
+    given(responseFormatter.numeric(OptionalLong.of(40L))).willReturn("formatted-numeric-40");
+    given(responseFormatter.numeric(OptionalLong.empty())).willReturn("formatted-numeric-not-found");
+
+    willAnswer(invocation -> "formatted-value-line-%s-%s".formatted(invocation.getArgument(0), invocation.getArgument(2)))
+      .given(responseFormatter).valueLine(any(String.class), any(CacheEntry.class), anyBoolean());
+    given(responseFormatter.crlf()).willReturn("formatted-crlf");
+    given(responseFormatter.end()).willReturn("formatted-end");
   }
 
   private static List<String> keysForCommandLineLength(int targetLength) {
